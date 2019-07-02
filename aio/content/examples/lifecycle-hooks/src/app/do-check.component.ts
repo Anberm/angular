@@ -72,8 +72,6 @@ export class DoCheckComponent implements DoCheck {
   }
 }
 
-/***************************************/
-
 @Component({
   selector: 'do-check-parent',
   templateUrl: './do-check-parent.component.html',
@@ -83,7 +81,7 @@ export class DoCheckParentComponent {
   hero: Hero;
   power: string;
   title = 'DoCheck';
-  @ViewChild(DoCheckComponent) childView: DoCheckComponent;
+  @ViewChild(DoCheckComponent, {static: false}) childView: DoCheckComponent;
 
   constructor() { this.reset(); }
 

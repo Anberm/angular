@@ -32,10 +32,13 @@ module.exports = function checkContentRules(log, createDocMessage) {
     docTypeRules: {},
     failOnContentErrors: false,
     $runAfter: ['tags-extracted'],
-    $runBefore: ['processing-docs'],
+    $runBefore: [],
     $process(docs) {
+      const logMessage = this.failOnContentErrors ? log.error.bind(log) : log.warn.bind(log);
       const errors = [];
       docs.forEach(doc => {
+        // Ignore private exports (and members of a private export).
+        if (doc.id && doc.id.indexOf('ɵ') !== -1) return;
         const docErrors = [];
         const rules = this.docTypeRules[doc.docType] || {};
         if (rules) {
@@ -55,10 +58,10 @@ module.exports = function checkContentRules(log, createDocMessage) {
       });
 
       if (errors.length) {
-        log.error('Content contains errors');
+        logMessage('Content contains errors');
         errors.forEach(docError => {
           const errors = docError.errors.join('\n        ');
-          log.error(createDocMessage(errors + '\n        ', docError.doc));
+          logMessage(createDocMessage(errors + '\n        ', docError.doc));
         });
         if (this.failOnContentErrors) {
           throw new Error('Stopping due to content errors.');

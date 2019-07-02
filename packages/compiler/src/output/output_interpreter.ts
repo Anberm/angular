@@ -114,6 +114,12 @@ class StatementInterpreter implements o.StatementVisitor, o.ExpressionVisitor {
     }
     throw new Error(`Not declared variable ${expr.name}`);
   }
+  visitWrappedNodeExpr(ast: o.WrappedNodeExpr<any>, ctx: _ExecutionContext): never {
+    throw new Error('Cannot interpret a WrappedNodeExpr.');
+  }
+  visitTypeofExpr(ast: o.TypeofExpr, ctx: _ExecutionContext): never {
+    throw new Error('Cannot interpret a TypeofExpr');
+  }
   visitReadVarExpr(ast: o.ReadVarExpr, ctx: _ExecutionContext): any {
     let varName = ast.name !;
     if (ast.builtin != null) {

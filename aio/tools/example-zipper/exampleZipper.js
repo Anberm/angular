@@ -55,8 +55,8 @@ class ExampleZipper {
   }
 
   // rename a custom main.ts or index.html file
-  _renameFile(file) {
-    if (/src\/main[-.]\w+\.ts$/.test(file)) {
+  _renameFile(file, exampleType) {
+    if (/src\/main[-.]\w+\.ts$/.test(file) && exampleType !== 'universal') {
       return 'src/main.ts';
     }
 
@@ -86,7 +86,7 @@ class ExampleZipper {
     let alwaysIncludes = [
       'bs-config.json',
       'e2e/protractor.conf.js',
-      '.angular-cli.json',
+      'angular.json',
       '.editorconfig',
       '.gitignore',
       'tslint.json',
@@ -98,10 +98,13 @@ class ExampleZipper {
       'src/favicon.ico',
       'src/karma.conf.js',
       'src/polyfills.ts',
+      'src/test.ts',
       'src/typings.d.ts',
       'src/environments/**/*',
       'src/tsconfig.*',
-      'src/tslint.*'
+      'src/tslint.*',
+      // Only ignore root package.json
+      '!package.json'
     ];
     var alwaysExcludes = [
       '!**/bs-config.e2e.json',
@@ -109,10 +112,8 @@ class ExampleZipper {
       '!**/*zipper.*',
       '!**/systemjs.config.js',
       '!**/npm-debug.log',
-      '!**/package.json',
       '!**/example-config.json',
       '!**/wallaby.js',
-      '!**/package.webpack.json',
       // AoT related files
       '!**/aot/**/*.*',
       '!**/*-aot.*'
@@ -158,7 +159,7 @@ class ExampleZipper {
     let zip = this._createZipArchive(outputFileName);
     fileNames.forEach((fileName) => {
       let relativePath = path.relative(exampleDirName, fileName);
-      relativePath = this._renameFile(relativePath);
+      relativePath = this._renameFile(relativePath, exampleType);
       let content = fs.readFileSync(fileName, 'utf8');
       let extn = path.extname(fileName).substr(1);
       // if we don't need to clean up the file then we can do the following.

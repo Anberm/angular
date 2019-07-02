@@ -5,21 +5,34 @@
   "license": "MIT",
   "dependencies": {
     "@angular/animations": "file:../../dist/packages-dist/animations",
+    "@angular/cdk": "8.0.1",
     "@angular/common": "file:../../dist/packages-dist/common",
-    "@angular/compiler": "file:../../dist/packages-dist/compiler",
     "@angular/core": "file:../../dist/packages-dist/core",
+    "@angular/forms": "file:../../dist/packages-dist/forms",
+    "@angular/material": "8.0.1",
     "@angular/platform-browser": "file:../../dist/packages-dist/platform-browser",
-    "rxjs": "file:../../node_modules/rxjs",
-    "zone.js": "file:../../node_modules/zone.js"
+    "@angular/platform-browser-dynamic": "file:../../dist/packages-dist/platform-browser-dynamic",
+    "@angular/router": "file:../../dist/packages-dist/router",
+    "reflect-metadata": "0.1.12",
+    "rxjs": "6.4.0",
+    "tslib": "1.9.3",
+    "zone.js": "0.9.1"
   },
   "devDependencies": {
     "@angular/bazel": "file:../../dist/packages-dist/bazel",
+    "@angular/compiler": "file:../../dist/packages-dist/compiler",
     "@angular/compiler-cli": "file:../../dist/packages-dist/compiler-cli",
-    "typescript": "file:../../node_modules/typescript",
-    "@types/source-map": "0.5.1"
+    "@bazel/bazel": "file:../../node_modules/@bazel/bazel",
+    "@bazel/hide-bazel-files": "0.32.2",
+    "@bazel/karma": "0.32.2",
+    "@bazel/typescript": "0.32.2",
+    "@types/jasmine": "2.8.8",
+    "@types/source-map": "0.5.1",
+    "protractor": "5.1.2",
+    "typescript": "3.4.2"
   },
   "scripts": {
-    "postinstall": "ngc -p angular.tsconfig.json",
-    "test": "bazel build //... --noshow_progress"
+    "test": "bazel build ... --noshow_progress && bazel test ...",
+    "postinstall": "ngc -p ./angular-metadata.tsconfig.json"
   }
 }

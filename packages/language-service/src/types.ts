@@ -8,6 +8,7 @@
 
 import {CompileDirectiveMetadata, CompileMetadataResolver, CompilePipeSummary, NgAnalyzedModules, StaticSymbol} from '@angular/compiler';
 import {BuiltinType, DeclarationKind, Definition, PipeInfo, Pipes, Signature, Span, Symbol, SymbolDeclaration, SymbolQuery, SymbolTable} from '@angular/compiler-cli/src/language_services';
+import {AstResult, TemplateInfo} from './common';
 
 export {
   BuiltinType,
@@ -27,9 +28,9 @@ export {
  * The information `LanguageService` needs from the `LanguageServiceHost` to describe the content of
  * a template and the language context the template is in.
  *
- * A host interface; see `LanguageSeriviceHost`.
+ * A host interface; see `LanguageServiceHost`.
  *
- * @experimental
+ * @publicApi
  */
 export interface TemplateSource {
   /**
@@ -71,9 +72,9 @@ export interface TemplateSource {
 /**
  * A sequence of template sources.
  *
- * A host type; see `LanguageSeriviceHost`.
+ * A host type; see `LanguageServiceHost`.
  *
- * @experimental
+ * @publicApi
  */
 export type TemplateSources = TemplateSource[] | undefined;
 
@@ -83,7 +84,7 @@ export type TemplateSources = TemplateSource[] | undefined;
  *
  * A host type; see `LanguageServiceHost`.
  *
- * @experimental
+ * @publicApi
  */
 export interface DeclarationError {
   /**
@@ -102,14 +103,14 @@ export interface DeclarationError {
  * Information about the component declarations.
  *
  * A file might contain a declaration without a template because the file contains only
- * templateUrl references. However, the compoennt declaration might contain errors that
+ * templateUrl references. However, the component declaration might contain errors that
  * need to be reported such as the template string is missing or the component is not
  * declared in a module. These error should be reported on the declaration, not the
  * template.
  *
- * A host type; see `LanguageSeriviceHost`.
+ * A host type; see `LanguageServiceHost`.
  *
- * @experimental
+ * @publicApi
  */
 export interface Declaration {
   /**
@@ -137,16 +138,15 @@ export interface Declaration {
 /**
  * A sequence of declarations.
  *
- * A host type; see `LanguageSeriviceHost`.
+ * A host type; see `LanguageServiceHost`.
  *
- * @experimental
+ * @publicApi
  */
 export type Declarations = Declaration[];
 
 /**
  * The host for a `LanguageService`. This provides all the `LanguageService` requires to respond
- * to
- * the `LanguageService` requests.
+ * to the `LanguageService` requests.
  *
  * This interface describes the requirements of the `LanguageService` on its host.
  *
@@ -169,7 +169,7 @@ export type Declarations = Declaration[];
  * releases. After an interface is marked as stable breaking-changes will only be allowed between
  * major releases. No breaking changes are allowed between patch releases.
  *
- * @experimental
+ * @publicApi
  */
 export interface LanguageServiceHost {
   /**
@@ -186,8 +186,7 @@ export interface LanguageServiceHost {
 
   /**
    * Return the template source information for all templates in `fileName` or for `fileName` if
-   * it
-   * is a template file.
+   * it is a template file.
    */
   getTemplates(fileName: string): TemplateSources;
 
@@ -205,6 +204,16 @@ export interface LanguageServiceHost {
    * Return a list all the template files referenced by the project.
    */
   getTemplateReferences(): string[];
+
+  /**
+   * Return the AST for both HTML and template for the contextFile.
+   */
+  getTemplateAst(template: TemplateSource, contextFile: string): AstResult;
+
+  /**
+   * Return the template AST for the node that corresponds to the position.
+   */
+  getTemplateAstAtPosition(fileName: string, position: number): TemplateInfo|undefined;
 }
 
 /**
@@ -212,11 +221,11 @@ export interface LanguageServiceHost {
  *
  * A `LanguageService` interface.
  *
- * @experimental
+ * @publicApi
  */
 export interface Completion {
   /**
-   * The kind of comletion.
+   * The kind of completion.
    */
   kind: DeclarationKind;
 
@@ -234,7 +243,7 @@ export interface Completion {
 /**
  * A sequence of completions.
  *
- * @experimental
+ * @publicApi
  */
 export type Completions = Completion[] | undefined;
 
@@ -249,7 +258,7 @@ export interface Location {
 /**
  * The kind of diagnostic message.
  *
- * @experimental
+ * @publicApi
  */
 export enum DiagnosticKind {
   Error,
@@ -264,7 +273,7 @@ export enum DiagnosticKind {
  * For compatibility previous implementation, the values are expected to override
  * toString() to return a formatted message.
  *
- * @experimental
+ * @publicApi
  */
 export interface DiagnosticMessageChain {
   /**
@@ -281,7 +290,7 @@ export interface DiagnosticMessageChain {
 /**
  * An template diagnostic message to display.
  *
- * @experimental
+ * @publicApi
  */
 export interface Diagnostic {
   /**
@@ -303,7 +312,7 @@ export interface Diagnostic {
 /**
  * A sequence of diagnostic message.
  *
- * @experimental
+ * @publicApi
  */
 export type Diagnostics = Diagnostic[];
 
@@ -353,7 +362,7 @@ export interface Hover {
  * beginning of the file reference by `fileName`.
  *
  * This interface and all interfaces and types marked as `LanguageService` types, describe  a
- * particlar implementation of the Angular language service and is not intented to be
+ * particular implementation of the Angular language service and is not intended to be
  * implemented. Adding members to the interface will not be considered a breaking change as
  * defined by SemVer.
  *
@@ -364,7 +373,7 @@ export interface Hover {
  * releases. After an interface is marked as stable breaking-changes will only be allowed between
  * major releases. No breaking changes are allowed between patch releases.
  *
- * @experimental
+ * @publicApi
  */
 export interface LanguageService {
   /**

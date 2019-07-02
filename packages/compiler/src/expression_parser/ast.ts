@@ -268,24 +268,24 @@ export class NullAstVisitor implements AstVisitor {
 
 export class RecursiveAstVisitor implements AstVisitor {
   visitBinary(ast: Binary, context: any): any {
-    ast.left.visit(this);
-    ast.right.visit(this);
+    ast.left.visit(this, context);
+    ast.right.visit(this, context);
     return null;
   }
   visitChain(ast: Chain, context: any): any { return this.visitAll(ast.expressions, context); }
   visitConditional(ast: Conditional, context: any): any {
-    ast.condition.visit(this);
-    ast.trueExp.visit(this);
-    ast.falseExp.visit(this);
+    ast.condition.visit(this, context);
+    ast.trueExp.visit(this, context);
+    ast.falseExp.visit(this, context);
     return null;
   }
   visitPipe(ast: BindingPipe, context: any): any {
-    ast.exp.visit(this);
+    ast.exp.visit(this, context);
     this.visitAll(ast.args, context);
     return null;
   }
   visitFunctionCall(ast: FunctionCall, context: any): any {
-    ast.target !.visit(this);
+    ast.target !.visit(this, context);
     this.visitAll(ast.args, context);
     return null;
   }
@@ -294,14 +294,14 @@ export class RecursiveAstVisitor implements AstVisitor {
     return this.visitAll(ast.expressions, context);
   }
   visitKeyedRead(ast: KeyedRead, context: any): any {
-    ast.obj.visit(this);
-    ast.key.visit(this);
+    ast.obj.visit(this, context);
+    ast.key.visit(this, context);
     return null;
   }
   visitKeyedWrite(ast: KeyedWrite, context: any): any {
-    ast.obj.visit(this);
-    ast.key.visit(this);
-    ast.value.visit(this);
+    ast.obj.visit(this, context);
+    ast.key.visit(this, context);
+    ast.value.visit(this, context);
     return null;
   }
   visitLiteralArray(ast: LiteralArray, context: any): any {
@@ -310,32 +310,32 @@ export class RecursiveAstVisitor implements AstVisitor {
   visitLiteralMap(ast: LiteralMap, context: any): any { return this.visitAll(ast.values, context); }
   visitLiteralPrimitive(ast: LiteralPrimitive, context: any): any { return null; }
   visitMethodCall(ast: MethodCall, context: any): any {
-    ast.receiver.visit(this);
+    ast.receiver.visit(this, context);
     return this.visitAll(ast.args, context);
   }
   visitPrefixNot(ast: PrefixNot, context: any): any {
-    ast.expression.visit(this);
+    ast.expression.visit(this, context);
     return null;
   }
   visitNonNullAssert(ast: NonNullAssert, context: any): any {
-    ast.expression.visit(this);
+    ast.expression.visit(this, context);
     return null;
   }
   visitPropertyRead(ast: PropertyRead, context: any): any {
-    ast.receiver.visit(this);
+    ast.receiver.visit(this, context);
     return null;
   }
   visitPropertyWrite(ast: PropertyWrite, context: any): any {
-    ast.receiver.visit(this);
-    ast.value.visit(this);
+    ast.receiver.visit(this, context);
+    ast.value.visit(this, context);
     return null;
   }
   visitSafePropertyRead(ast: SafePropertyRead, context: any): any {
-    ast.receiver.visit(this);
+    ast.receiver.visit(this, context);
     return null;
   }
   visitSafeMethodCall(ast: SafeMethodCall, context: any): any {
-    ast.receiver.visit(this);
+    ast.receiver.visit(this, context);
     return this.visitAll(ast.args, context);
   }
   visitAll(asts: AST[], context: any): any {
@@ -477,8 +477,9 @@ export class AstMemoryEfficientTransformer implements AstVisitor {
 
   visitMethodCall(ast: MethodCall, context: any): AST {
     const receiver = ast.receiver.visit(this);
-    if (receiver !== ast.receiver) {
-      return new MethodCall(ast.span, receiver, ast.name, this.visitAll(ast.args));
+    const args = this.visitAll(ast.args);
+    if (receiver !== ast.receiver || args !== ast.args) {
+      return new MethodCall(ast.span, receiver, ast.name, args);
     }
     return ast;
   }
@@ -546,7 +547,7 @@ export class AstMemoryEfficientTransformer implements AstVisitor {
     const condition = ast.condition.visit(this);
     const trueExp = ast.trueExp.visit(this);
     const falseExp = ast.falseExp.visit(this);
-    if (condition !== ast.condition || trueExp !== ast.trueExp || falseExp !== falseExp) {
+    if (condition !== ast.condition || trueExp !== ast.trueExp || falseExp !== ast.falseExp) {
       return new Conditional(ast.span, condition, trueExp, falseExp);
     }
     return ast;
@@ -698,14 +699,15 @@ export class ParsedEvent {
   // Animation events have a phase
   constructor(
       public name: string, public targetOrPhase: string, public type: ParsedEventType,
-      public handler: AST, public sourceSpan: ParseSourceSpan) {}
+      public handler: AST, public sourceSpan: ParseSourceSpan,
+      public handlerSpan: ParseSourceSpan) {}
 }
 
 export class ParsedVariable {
   constructor(public name: string, public value: string, public sourceSpan: ParseSourceSpan) {}
 }
 
-export const enum BoundElementBindingType {
+export const enum BindingType {
   // A regular binding to a property (e.g. `[property]="expression"`).
   Property,
   // A binding to an element attribute (e.g. `[attr.name]="expression"`).
@@ -720,7 +722,6 @@ export const enum BoundElementBindingType {
 
 export class BoundElementProperty {
   constructor(
-      public name: string, public type: BoundElementBindingType,
-      public securityContext: SecurityContext, public value: AST, public unit: string|null,
-      public sourceSpan: ParseSourceSpan) {}
+      public name: string, public type: BindingType, public securityContext: SecurityContext,
+      public value: AST, public unit: string|null, public sourceSpan: ParseSourceSpan) {}
 }

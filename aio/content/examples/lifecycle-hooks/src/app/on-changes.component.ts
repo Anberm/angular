@@ -46,8 +46,6 @@ export class OnChangesComponent implements OnChanges {
   reset() { this.changeLog = []; }
 }
 
-/***************************************/
-
 @Component({
   selector: 'on-changes-parent',
   templateUrl: './on-changes-parent.component.html',
@@ -57,7 +55,7 @@ export class OnChangesParentComponent {
   hero: Hero;
   power: string;
   title = 'OnChanges';
-  @ViewChild(OnChangesComponent) childView: OnChangesComponent;
+  @ViewChild(OnChangesComponent, {static: false}) childView: OnChangesComponent;
 
   constructor() {
     this.reset();

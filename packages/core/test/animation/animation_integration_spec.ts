@@ -5,22 +5,22 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
-import {AUTO_STYLE, AnimationEvent, AnimationOptions, AnimationPlayer, NoopAnimationPlayer, animate, animateChild, group, keyframes, query, state, style, transition, trigger, ɵPRE_STYLE as PRE_STYLE} from '@angular/animations';
+import {AUTO_STYLE, AnimationEvent, AnimationOptions, animate, animateChild, group, keyframes, query, state, style, transition, trigger, ɵPRE_STYLE as PRE_STYLE} from '@angular/animations';
 import {AnimationDriver, ɵAnimationEngine, ɵNoopAnimationDriver as NoopAnimationDriver} from '@angular/animations/browser';
 import {MockAnimationDriver, MockAnimationPlayer} from '@angular/animations/browser/testing';
 import {ChangeDetectorRef, Component, HostBinding, HostListener, Inject, RendererFactory2, ViewChild} from '@angular/core';
+import {TestBed, fakeAsync, flushMicrotasks} from '@angular/core/testing';
 import {ɵDomRendererFactory2} from '@angular/platform-browser';
 import {ANIMATION_MODULE_TYPE, BrowserAnimationsModule, NoopAnimationsModule} from '@angular/platform-browser/animations';
 import {getDOM} from '@angular/platform-browser/src/dom/dom_adapter';
-
-import {TestBed, fakeAsync, flushMicrotasks} from '../../testing';
+import {ivyEnabled, modifiedInIvy} from '@angular/private/testing';
 
 const DEFAULT_NAMESPACE_ID = 'id';
 const DEFAULT_COMPONENT_ID = '1';
 
 (function() {
   // these tests are only mean't to be run within the DOM (for now)
-  if (typeof Element == 'undefined') return;
+  if (isNode) return;
 
   describe('animation tests', function() {
     function getLog(): MockAnimationPlayer[] {
@@ -345,7 +345,7 @@ const DEFAULT_COMPONENT_ID = '1';
           ]
         })
         class Cmp {
-          @ViewChild('element')
+          @ViewChild('element', {static: false})
           element: any;
           exp: any = '';
         }
@@ -852,7 +852,6 @@ const DEFAULT_COMPONENT_ID = '1';
              expect(data.keyframes).toEqual([{offset: 0, opacity: '0'}, {offset: 1, opacity: '1'}]);
            }));
 
-        // nonAnimationRenderer => animationRenderer
         it('should trigger a leave animation when the inner components host binding updates',
            fakeAsync(() => {
              @Component({
@@ -954,7 +953,6 @@ const DEFAULT_COMPONENT_ID = '1';
              expect(fixture.debugElement.nativeElement.children.length).toBe(0);
            }));
 
-        // animationRenderer => animationRenderer
         it('should trigger a leave animation when both the inner and outer components trigger on the same element',
            fakeAsync(() => {
              @Component({
@@ -1435,7 +1433,7 @@ const DEFAULT_COMPONENT_ID = '1';
               ])]
         })
         class Cmp {
-          @ViewChild('green') public element: any;
+          @ViewChild('green', {static: false}) public element: any;
         }
 
         TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1452,6 +1450,117 @@ const DEFAULT_COMPONENT_ID = '1';
         expect(getDOM().hasStyle(cmp.element.nativeElement, 'background-color', 'green'))
             .toBeTruthy();
       });
+
+      it('should retain state styles when the underlying DOM structure changes even if there are no insert/remove animations',
+         () => {
+           @Component({
+             selector: 'ani-cmp',
+             template: `
+            <div class="item" *ngFor="let item of items" [@color]="colorExp">
+              {{ item }}
+            </div>
+          `,
+             animations: [trigger('color', [state('green', style({backgroundColor: 'green'}))])]
+           })
+           class Cmp {
+             public colorExp = 'green';
+             public items = [0, 1, 2, 3];
+
+             reorder() {
+               const temp = this.items[0];
+               this.items[0] = this.items[1];
+               this.items[1] = temp;
+             }
+           }
+
+           TestBed.configureTestingModule({declarations: [Cmp]});
+
+           const fixture = TestBed.createComponent(Cmp);
+           const cmp = fixture.componentInstance;
+           fixture.detectChanges();
+
+           let elements: HTMLElement[] = fixture.nativeElement.querySelectorAll('.item');
+           assertBackgroundColor(elements[0], 'green');
+           assertBackgroundColor(elements[1], 'green');
+           assertBackgroundColor(elements[2], 'green');
+           assertBackgroundColor(elements[3], 'green');
+
+           elements[0].title = '0a';
+           elements[1].title = '1a';
+
+           cmp.reorder();
+           fixture.detectChanges();
+
+           elements = fixture.nativeElement.querySelectorAll('.item');
+           assertBackgroundColor(elements[0], 'green');
+           assertBackgroundColor(elements[1], 'green');
+           assertBackgroundColor(elements[2], 'green');
+           assertBackgroundColor(elements[3], 'green');
+
+           function assertBackgroundColor(element: HTMLElement, color: string) {
+             expect(element.style.getPropertyValue('background-color')).toEqual(color);
+           }
+         });
+
+      it('should retain state styles when the underlying DOM structure changes even if there are insert/remove animations',
+         () => {
+           @Component({
+             selector: 'ani-cmp',
+             template: `
+            <div class="item" *ngFor="let item of items" [@color]="colorExp">
+              {{ item }}
+            </div>
+          `,
+             animations: [trigger(
+                 'color',
+                 [
+                   transition('* => *', animate(500)),
+                   state('green', style({backgroundColor: 'green'}))
+                 ])]
+           })
+           class Cmp {
+             public colorExp = 'green';
+             public items = [0, 1, 2, 3];
+
+             reorder() {
+               const temp = this.items[0];
+               this.items[0] = this.items[1];
+               this.items[1] = temp;
+             }
+           }
+
+           TestBed.configureTestingModule({declarations: [Cmp]});
+
+           const fixture = TestBed.createComponent(Cmp);
+           const cmp = fixture.componentInstance;
+           fixture.detectChanges();
+
+           getLog().forEach(p => p.finish());
+
+           let elements: HTMLElement[] = fixture.nativeElement.querySelectorAll('.item');
+           assertBackgroundColor(elements[0], 'green');
+           assertBackgroundColor(elements[1], 'green');
+           assertBackgroundColor(elements[2], 'green');
+           assertBackgroundColor(elements[3], 'green');
+
+           elements[0].title = '0a';
+           elements[1].title = '1a';
+
+           cmp.reorder();
+           fixture.detectChanges();
+
+           getLog().forEach(p => p.finish());
+
+           elements = fixture.nativeElement.querySelectorAll('.item');
+           assertBackgroundColor(elements[0], 'green');
+           assertBackgroundColor(elements[1], 'green');
+           assertBackgroundColor(elements[2], 'green');
+           assertBackgroundColor(elements[3], 'green');
+
+           function assertBackgroundColor(element: HTMLElement, color: string) {
+             expect(element.style.getPropertyValue('background-color')).toEqual(color);
+           }
+         });
 
       it('should animate removals of nodes to the `void` state for each animation trigger, but treat all auto styles as pre styles',
          () => {
@@ -1525,7 +1634,8 @@ const DEFAULT_COMPONENT_ID = '1';
           ]
         })
         class Cmp {
-          public exp: string|null;
+          // TODO(issue/24571): remove '!'.
+          public exp !: string | null;
         }
 
         TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1660,7 +1770,7 @@ const DEFAULT_COMPONENT_ID = '1';
         class Cmp {
           public exp: any;
 
-          @ViewChild('parent') public parentElement: any;
+          @ViewChild('parent', {static: false}) public parentElement: any;
         }
 
         TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1714,9 +1824,9 @@ const DEFAULT_COMPONENT_ID = '1';
              public exp1: any;
              public exp2: any;
 
-             @ViewChild('parent') public parent: any;
+             @ViewChild('parent', {static: false}) public parent: any;
 
-             @ViewChild('child') public child: any;
+             @ViewChild('child', {static: false}) public child: any;
            }
 
            TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1771,11 +1881,11 @@ const DEFAULT_COMPONENT_ID = '1';
              public exp1: any;
              public exp2: any;
 
-             @ViewChild('parent') public parent: any;
+             @ViewChild('parent', {static: false}) public parent: any;
 
-             @ViewChild('child1') public child1Elm: any;
+             @ViewChild('child1', {static: false}) public child1Elm: any;
 
-             @ViewChild('child2') public child2Elm: any;
+             @ViewChild('child2', {static: false}) public child2Elm: any;
            }
 
            TestBed.configureTestingModule({declarations: [Cmp]});
@@ -1912,7 +2022,8 @@ const DEFAULT_COMPONENT_ID = '1';
            })
            class Cmp {
              public exp: any;
-             public color: string|null;
+             // TODO(issue/24571): remove '!'.
+             public color !: string | null;
            }
 
            TestBed.configureTestingModule({declarations: [Cmp]});
@@ -2129,7 +2240,7 @@ const DEFAULT_COMPONENT_ID = '1';
               [transition(':enter', [style({opacity: 0}), animate('1s', style({opacity: 1}))])])]
         })
         class OuterCmp {
-          @ViewChild('inner') public inner: any;
+          @ViewChild('inner', {static: false}) public inner: any;
           public exp: any = null;
 
           update() { this.exp = 'go'; }
@@ -2268,6 +2379,65 @@ const DEFAULT_COMPONENT_ID = '1';
           });
         });
       });
+
+      it('should animate nodes properly when they have been re-ordered', () => {
+        @Component({
+          selector: 'if-cmp',
+          template: `
+                <div *ngFor="let item of items" [class]="'class-' + item.value">
+                  <div [@myAnimation]="item.count">
+                    {{ item.value }}
+                  </div>
+                </div>
+              `,
+          animations: [
+            trigger(
+                'myAnimation',
+                [
+                  state('0', style({opacity: 0})), state('1', style({opacity: 0.4})),
+                  state('2', style({opacity: 0.8})), transition('* => 1, * => 2', [animate(1000)])
+                ]),
+          ]
+        })
+        class Cmp {
+          items = [
+            {value: '1', count: 0},
+            {value: '2', count: 0},
+            {value: '3', count: 0},
+            {value: '4', count: 0},
+            {value: '5', count: 0},
+          ];
+
+          reOrder() {
+            this.items = [
+              this.items[4],
+              this.items[1],
+              this.items[3],
+              this.items[0],
+              this.items[2],
+            ];
+          }
+        }
+
+        TestBed.configureTestingModule({declarations: [Cmp]});
+        const fixture = TestBed.createComponent(Cmp);
+        const cmp = fixture.componentInstance;
+        const one = cmp.items[0];
+        const two = cmp.items[1];
+        one.count++;
+        fixture.detectChanges();
+
+        cmp.reOrder();
+        fixture.detectChanges();
+        resetLog();
+
+        one.count++;
+        two.count++;
+        fixture.detectChanges();
+
+        const players = getLog();
+        expect(players.length).toEqual(2);
+      });
     });
 
     describe('animation listeners', () => {
@@ -2286,7 +2456,8 @@ const DEFAULT_COMPONENT_ID = '1';
            })
            class Cmp {
              exp: any = false;
-             event: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event !: AnimationEvent;
 
              callback = (event: any) => { this.event = event; };
            }
@@ -2321,7 +2492,8 @@ const DEFAULT_COMPONENT_ID = '1';
            })
            class Cmp {
              exp: any = false;
-             event: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event !: AnimationEvent;
 
              callback = (event: any) => { this.event = event; };
            }
@@ -2376,8 +2548,10 @@ const DEFAULT_COMPONENT_ID = '1';
            class Cmp {
              exp1: any = false;
              exp2: any = false;
-             event1: AnimationEvent;
-             event2: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event1 !: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event2 !: AnimationEvent;
              // tslint:disable:semicolon
              callback1 = (event: any) => { this.event1 = event; };
              // tslint:disable:semicolon
@@ -2438,8 +2612,10 @@ const DEFAULT_COMPONENT_ID = '1';
            class Cmp {
              exp1: any = false;
              exp2: any = false;
-             event1: AnimationEvent;
-             event2: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event1 !: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event2 !: AnimationEvent;
              callback1 = (event: any) => { this.event1 = event; };
              callback2 = (event: any) => { this.event2 = event; };
            }
@@ -2543,7 +2719,8 @@ const DEFAULT_COMPONENT_ID = '1';
                      [style({'opacity': '0'}), animate(1000, style({'opacity': '1'}))])])],
            })
            class Cmp {
-             event: AnimationEvent;
+             // TODO(issue/24571): remove '!'.
+             event !: AnimationEvent;
 
              @HostBinding('@myAnimation2')
              exp: any = false;
@@ -2577,7 +2754,8 @@ const DEFAULT_COMPONENT_ID = '1';
              animations: [trigger('myAnimation', [])]
            })
            class Cmp {
-             exp: string;
+             // TODO(issue/24571): remove '!'.
+             exp !: string;
              log: any[] = [];
              callback = (event: any) => this.log.push(`${event.phaseName} => ${event.toState}`);
            }
@@ -2688,8 +2866,10 @@ const DEFAULT_COMPONENT_ID = '1';
            })
            class Cmp {
              log: string[] = [];
-             exp1: string;
-             exp2: string;
+             // TODO(issue/24571): remove '!'.
+             exp1 !: string;
+             // TODO(issue/24571): remove '!'.
+             exp2 !: string;
 
              cb(name: string, event: AnimationEvent) { this.log.push(name); }
            }
@@ -2766,7 +2946,8 @@ const DEFAULT_COMPONENT_ID = '1';
         class Cmp {
                  log: string[] = [];
                  events: {[name: string]: any} = {};
-                 exp: string;
+                 // TODO(issue/24571): remove '!'.
+                 exp !: string;
                  items: any = [0, 1, 2, 3];
 
                  cb(name: string, phase: string, event: AnimationEvent) {
@@ -2892,7 +3073,7 @@ const DEFAULT_COMPONENT_ID = '1';
             exp: any = false;
             disableExp = false;
 
-            @ViewChild('elm') public element: any;
+            @ViewChild('elm', {static: true}) public element: any;
           }
 
           TestBed.configureTestingModule({declarations: [Cmp]});
@@ -2903,6 +3084,10 @@ const DEFAULT_COMPONENT_ID = '1';
           function assertHeight(element: any, height: string) {
             expect(element.style['height']).toEqual(height);
           }
+
+          // In Ivy, change detection needs to run before the ViewQuery for cmp.element will
+          // resolve. Keeping this test enabled since we still want to test the animation logic.
+          if (ivyEnabled) fixture.detectChanges();
 
           const cmp = fixture.componentInstance;
           const element = cmp.element.nativeElement;
@@ -3046,7 +3231,7 @@ const DEFAULT_COMPONENT_ID = '1';
             ]
           })
           class Cmp {
-            @ViewChild('parent') public parentElm: any;
+            @ViewChild('parent', {static: false}) public parentElm: any;
             disableExp = false;
             exp = false;
           }
@@ -3093,8 +3278,10 @@ const DEFAULT_COMPONENT_ID = '1';
              class Cmp {
                disableExp = false;
                exp = '';
-               startEvent: AnimationEvent;
-               doneEvent: AnimationEvent;
+               // TODO(issue/24571): remove '!'.
+               startEvent !: AnimationEvent;
+               // TODO(issue/24571): remove '!'.
+               doneEvent !: AnimationEvent;
              }
 
              TestBed.configureTestingModule({declarations: [Cmp]});
@@ -3135,7 +3322,7 @@ const DEFAULT_COMPONENT_ID = '1';
                 `
              })
              class ParentCmp {
-               @ViewChild('child') public child: ChildCmp|null = null;
+               @ViewChild('child', {static: false}) public child: ChildCmp|null = null;
                disableExp = false;
              }
 
@@ -3251,7 +3438,7 @@ const DEFAULT_COMPONENT_ID = '1';
                 `
              })
              class Cmp {
-               @ViewChild('container') public container: any;
+               @ViewChild('container', {static: false}) public container: any;
 
                disableExp = false;
                exp = '';
@@ -3473,18 +3660,19 @@ const DEFAULT_COMPONENT_ID = '1';
       expect(() => { TestBed.createComponent(Cmp); }).not.toThrowError();
     });
 
-    it('should continue to clean up DOM-related animation artificats even if a compiler-level error is thrown midway',
-       () => {
-         @Component({
-           selector: 'if-cmp',
-           animations: [
-             trigger(
-                 'foo',
-                 [
-                   transition('* => something', []),
-                 ]),
-           ],
-           template: `
+    modifiedInIvy('FW-952 - Error recovery is handled differently in Ivy than VE')
+        .it('should continue to clean up DOM-related animation artifacts even if a compiler-level error is thrown midway',
+            () => {
+              @Component({
+                selector: 'if-cmp',
+                animations: [
+                  trigger(
+                      'foo',
+                      [
+                        transition('* => something', []),
+                      ]),
+                ],
+                template: `
           value = {{ foo[bar] }}
           <div #contents>
             <div *ngIf="exp">1</div>
@@ -3492,32 +3680,32 @@ const DEFAULT_COMPONENT_ID = '1';
             <div *ngIf="exp" [@foo]="'123'">3</div>
           </div>
         `,
-         })
-         class Cmp {
-           exp: any = false;
+              })
+              class Cmp {
+                exp: any = false;
 
-           @ViewChild('contents') public contents: any;
-         }
+                @ViewChild('contents', {static: true}) public contents: any;
+              }
 
-         TestBed.configureTestingModule({declarations: [Cmp]});
+              TestBed.configureTestingModule({declarations: [Cmp]});
 
-         const engine = TestBed.get(ɵAnimationEngine);
-         const fixture = TestBed.createComponent(Cmp);
+              const engine = TestBed.get(ɵAnimationEngine);
+              const fixture = TestBed.createComponent(Cmp);
 
-         const runCD = () => fixture.detectChanges();
-         const cmp = fixture.componentInstance;
+              const runCD = () => fixture.detectChanges();
+              const cmp = fixture.componentInstance;
 
-         cmp.exp = true;
-         expect(runCD).toThrow();
+              cmp.exp = true;
+              expect(runCD).toThrow();
 
-         const contents = cmp.contents.nativeElement;
-         expect(contents.innerText.replace(/\s+/gm, '')).toEqual('123');
+              const contents = cmp.contents.nativeElement;
+              expect(contents.innerText.replace(/\s+/gm, '')).toEqual('123');
 
-         cmp.exp = false;
-         expect(runCD).toThrow();
+              cmp.exp = false;
+              expect(runCD).toThrow();
 
-         expect(contents.innerText.trim()).toEqual('');
-       });
+              expect(contents.innerText.trim()).toEqual('');
+            });
 
     describe('errors for not using the animation module', () => {
       beforeEach(() => {

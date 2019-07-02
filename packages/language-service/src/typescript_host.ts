@@ -6,17 +6,17 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {AotSummaryResolver, CompileMetadataResolver, CompilerConfig, DEFAULT_INTERPOLATION_CONFIG, DirectiveNormalizer, DirectiveResolver, DomElementSchemaRegistry, FormattedError, FormattedMessageChain, HtmlParser, InterpolationConfig, JitSummaryResolver, NgAnalyzedModules, NgModuleResolver, ParseTreeResult, PipeResolver, ResourceLoader, StaticReflector, StaticSymbol, StaticSymbolCache, StaticSymbolResolver, SummaryResolver, analyzeNgModules, createOfflineCompileUrlResolver, isFormattedError} from '@angular/compiler';
+import {AotSummaryResolver, CompileMetadataResolver, CompileNgModuleMetadata, CompilePipeSummary, CompilerConfig, DirectiveNormalizer, DirectiveResolver, DomElementSchemaRegistry, FormattedError, FormattedMessageChain, HtmlParser, I18NHtmlParser, JitSummaryResolver, Lexer, NgAnalyzedModules, NgModuleResolver, ParseTreeResult, Parser, PipeResolver, ResourceLoader, StaticReflector, StaticSymbol, StaticSymbolCache, StaticSymbolResolver, TemplateParser, analyzeNgModules, createOfflineCompileUrlResolver, isFormattedError} from '@angular/compiler';
 import {CompilerOptions, getClassMembersFromDeclaration, getPipesTable, getSymbolQuery} from '@angular/compiler-cli/src/language_services';
 import {ViewEncapsulation, ɵConsole as Console} from '@angular/core';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ts from 'typescript';
 
+import {AstResult, TemplateInfo} from './common';
 import {createLanguageService} from './language_service';
 import {ReflectorHost} from './reflector_host';
-import {BuiltinType, Declaration, DeclarationError, DeclarationKind, Declarations, Definition, DiagnosticMessageChain, LanguageService, LanguageServiceHost, PipeInfo, Pipes, Signature, Span, Symbol, SymbolDeclaration, SymbolQuery, SymbolTable, TemplateSource, TemplateSources} from './types';
-import {isTypescriptVersion} from './utils';
+import {Declaration, DeclarationError, Declarations, Diagnostic, DiagnosticKind, DiagnosticMessageChain, LanguageService, LanguageServiceHost, Span, Symbol, SymbolQuery, TemplateSource, TemplateSources} from './types';
 
 
 
@@ -27,7 +27,6 @@ export function createLanguageServiceFromTypescript(
     host: ts.LanguageServiceHost, service: ts.LanguageService): LanguageService {
   const ngHost = new TypeScriptServiceHost(host, service);
   const ngServer = createLanguageService(ngHost);
-  ngHost.setSite(ngServer);
   return ngServer;
 }
 
@@ -38,11 +37,7 @@ export function createLanguageServiceFromTypescript(
  * syntactically incorrect templates.
  */
 export class DummyHtmlParser extends HtmlParser {
-  parse(
-      source: string, url: string, parseExpansionForms: boolean = false,
-      interpolationConfig: InterpolationConfig = DEFAULT_INTERPOLATION_CONFIG): ParseTreeResult {
-    return new ParseTreeResult([], []);
-  }
+  parse(): ParseTreeResult { return new ParseTreeResult([], []); }
 }
 
 /**
@@ -58,30 +53,37 @@ export class DummyResourceLoader extends ResourceLoader {
  * The `TypeScriptServiceHost` implements the Angular `LanguageServiceHost` using
  * the TypeScript language services.
  *
- * @experimental
+ * @publicApi
  */
 export class TypeScriptServiceHost implements LanguageServiceHost {
-  private _resolver: CompileMetadataResolver|null;
+  // TODO(issue/24571): remove '!'.
+  private _resolver !: CompileMetadataResolver | null;
   private _staticSymbolCache = new StaticSymbolCache();
-  private _summaryResolver: AotSummaryResolver;
-  private _staticSymbolResolver: StaticSymbolResolver;
-  private _reflector: StaticReflector|null;
-  private _reflectorHost: ReflectorHost;
-  private _checker: ts.TypeChecker|null;
+  // TODO(issue/24571): remove '!'.
+  private _summaryResolver !: AotSummaryResolver;
+  // TODO(issue/24571): remove '!'.
+  private _staticSymbolResolver !: StaticSymbolResolver;
+  // TODO(issue/24571): remove '!'.
+  private _reflector !: StaticReflector | null;
+  // TODO(issue/24571): remove '!'.
+  private _reflectorHost !: ReflectorHost;
+  // TODO(issue/24571): remove '!'.
+  private _checker !: ts.TypeChecker | null;
   private _typeCache: Symbol[] = [];
   private context: string|undefined;
   private lastProgram: ts.Program|undefined;
   private modulesOutOfDate: boolean = true;
-  private analyzedModules: NgAnalyzedModules|null;
-  private service: LanguageService;
-  private fileToComponent: Map<string, StaticSymbol>|null;
-  private templateReferences: string[]|null;
-  private collectedErrors: Map<string, any[]>|null;
+  // TODO(issue/24571): remove '!'.
+  private analyzedModules !: NgAnalyzedModules | null;
+  // TODO(issue/24571): remove '!'.
+  private fileToComponent !: Map<string, StaticSymbol>| null;
+  // TODO(issue/24571): remove '!'.
+  private templateReferences !: string[] | null;
+  // TODO(issue/24571): remove '!'.
+  private collectedErrors !: Map<string, any[]>| null;
   private fileVersions = new Map<string, string>();
 
   constructor(private host: ts.LanguageServiceHost, private tsService: ts.LanguageService) {}
-
-  setSite(service: LanguageService) { this.service = service; }
 
   /**
    * Angular LanguageServiceHost implementation
@@ -155,7 +157,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
         };
       } else {
         const analyzeHost = {isSourceFile(filePath: string) { return true; }};
-        const programFiles = this.program.getSourceFiles().map(sf => sf.fileName);
+        const programFiles = this.program !.getSourceFiles().map(sf => sf.fileName);
         analyzedModules =
             analyzeNgModules(programFiles, analyzeHost, this.staticSymbolResolver, this.resolver);
       }
@@ -213,7 +215,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
   }
 
   getSourceFile(fileName: string): ts.SourceFile|undefined {
-    return this.tsService.getProgram().getSourceFile(fileName);
+    return this.tsService.getProgram() !.getSourceFile(fileName);
   }
 
   updateAnalyzedModules() {
@@ -233,7 +235,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
   private get checker() {
     let checker = this._checker;
     if (!checker) {
-      checker = this._checker = this.program.getTypeChecker();
+      checker = this._checker = this.program !.getTypeChecker();
     }
     return checker;
   }
@@ -246,7 +248,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
           this._staticSymbolResolver.invalidateFile(fileName);
       this.clearCaches();
       const seen = new Set<string>();
-      for (let sourceFile of this.program.getSourceFiles()) {
+      for (let sourceFile of this.program !.getSourceFiles()) {
         const fileName = sourceFile.fileName;
         seen.add(fileName);
         const version = this.host.getScriptVersion(fileName);
@@ -314,14 +316,18 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
         span,
         type,
         get members() {
-          return getClassMembersFromDeclaration(t.program, t.checker, sourceFile, declaration);
+          return getClassMembersFromDeclaration(t.program !, t.checker, sourceFile, declaration);
         },
         get query() {
           if (!queryCache) {
-            const pipes = t.service.getPipesAt(fileName, node.getStart());
+            let pipes: CompilePipeSummary[] = [];
+            const templateInfo = t.getTemplateAstAtPosition(fileName, node.getStart());
+            if (templateInfo) {
+              pipes = templateInfo.pipes;
+            }
             queryCache = getSymbolQuery(
-                t.program, t.checker, sourceFile,
-                () => getPipesTable(sourceFile, t.program, t.checker, pipes));
+                t.program !, t.checker, sourceFile,
+                () => getPipesTable(sourceFile, t.program !, t.checker, pipes));
           }
           return queryCache;
         }
@@ -383,7 +389,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
       // The host's getCurrentDirectory() is not reliable as it is always "" in
       // tsserver. We don't need the exact base directory, just one that contains
       // a source file.
-      const source = this.tsService.getProgram().getSourceFile(this.context);
+      const source = this.tsService.getProgram() !.getSourceFile(this.context);
       if (!source) {
         throw new Error('Internal error: no context could be determined');
       }
@@ -399,7 +405,7 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
         options.paths = compilerOptions.paths;
       }
       result = this._reflectorHost =
-          new ReflectorHost(() => this.tsService.getProgram(), this.host, options);
+          new ReflectorHost(() => this.tsService.getProgram() !, this.host, options);
     }
     return result;
   }
@@ -585,8 +591,91 @@ export class TypeScriptServiceHost implements LanguageServiceHost {
 
     return find(sourceFile);
   }
+
+  getTemplateAstAtPosition(fileName: string, position: number): TemplateInfo|undefined {
+    let template = this.getTemplateAt(fileName, position);
+    if (template) {
+      let astResult = this.getTemplateAst(template, fileName);
+      if (astResult && astResult.htmlAst && astResult.templateAst && astResult.directive &&
+          astResult.directives && astResult.pipes && astResult.expressionParser)
+        return {
+          position,
+          fileName,
+          template,
+          htmlAst: astResult.htmlAst,
+          directive: astResult.directive,
+          directives: astResult.directives,
+          pipes: astResult.pipes,
+          templateAst: astResult.templateAst,
+          expressionParser: astResult.expressionParser
+        };
+    }
+    return undefined;
+  }
+
+  getTemplateAst(template: TemplateSource, contextFile: string): AstResult {
+    let result: AstResult|undefined = undefined;
+    try {
+      const resolvedMetadata =
+          this.resolver.getNonNormalizedDirectiveMetadata(template.type as any);
+      const metadata = resolvedMetadata && resolvedMetadata.metadata;
+      if (metadata) {
+        const rawHtmlParser = new HtmlParser();
+        const htmlParser = new I18NHtmlParser(rawHtmlParser);
+        const expressionParser = new Parser(new Lexer());
+        const config = new CompilerConfig();
+        const parser = new TemplateParser(
+            config, this.resolver.getReflector(), expressionParser, new DomElementSchemaRegistry(),
+            htmlParser, null !, []);
+        const htmlResult = htmlParser.parse(template.source, '', {tokenizeExpansionForms: true});
+        const analyzedModules = this.getAnalyzedModules();
+        let errors: Diagnostic[]|undefined = undefined;
+        let ngModule = analyzedModules.ngModuleByPipeOrDirective.get(template.type);
+        if (!ngModule) {
+          // Reported by the the declaration diagnostics.
+          ngModule = findSuitableDefaultModule(analyzedModules);
+        }
+        if (ngModule) {
+          const directives =
+              ngModule.transitiveModule.directives
+                  .map(d => this.resolver.getNonNormalizedDirectiveMetadata(d.reference))
+                  .filter(d => d)
+                  .map(d => d !.metadata.toSummary());
+          const pipes = ngModule.transitiveModule.pipes.map(
+              p => this.resolver.getOrLoadPipeMetadata(p.reference).toSummary());
+          const schemas = ngModule.schemas;
+          const parseResult = parser.tryParseHtml(htmlResult, metadata, directives, pipes, schemas);
+          result = {
+            htmlAst: htmlResult.rootNodes,
+            templateAst: parseResult.templateAst,
+            directive: metadata, directives, pipes,
+            parseErrors: parseResult.errors, expressionParser, errors
+          };
+        }
+      }
+    } catch (e) {
+      let span = template.span;
+      if (e.fileName == contextFile) {
+        span = template.query.getSpanAt(e.line, e.column) || span;
+      }
+      result = {errors: [{kind: DiagnosticKind.Error, message: e.message, span}]};
+    }
+    return result || {};
+  }
 }
 
+function findSuitableDefaultModule(modules: NgAnalyzedModules): CompileNgModuleMetadata|undefined {
+  let result: CompileNgModuleMetadata|undefined = undefined;
+  let resultSize = 0;
+  for (const module of modules.ngModules) {
+    const moduleSize = module.transitiveModule.directives.length;
+    if (moduleSize > resultSize) {
+      result = module;
+      resultSize = moduleSize;
+    }
+  }
+  return result;
+}
 
 function findTsConfig(fileName: string): string|undefined {
   let dir = path.dirname(fileName);

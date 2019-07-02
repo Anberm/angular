@@ -169,6 +169,10 @@ class _TsEmitterVisitor extends AbstractEmitterVisitor implements o.TypeVisitor 
     return null;
   }
 
+  visitWrappedNodeExpr(ast: o.WrappedNodeExpr<any>, ctx: EmitterVisitorContext): never {
+    throw new Error('Cannot visit a WrappedNodeExpr when outputting Typescript.');
+  }
+
   visitCastExpr(ast: o.CastExpr, ctx: EmitterVisitorContext): any {
     ctx.print(ast, `(<`);
     ast.type !.visitType(this, ctx);
@@ -345,6 +349,9 @@ class _TsEmitterVisitor extends AbstractEmitterVisitor implements o.TypeVisitor 
       case o.BuiltinTypeName.String:
         typeStr = 'string';
         break;
+      case o.BuiltinTypeName.None:
+        typeStr = 'never';
+        break;
       default:
         throw new Error(`Unsupported builtin type ${type.name}`);
     }
@@ -354,6 +361,11 @@ class _TsEmitterVisitor extends AbstractEmitterVisitor implements o.TypeVisitor 
 
   visitExpressionType(ast: o.ExpressionType, ctx: EmitterVisitorContext): any {
     ast.value.visitExpression(this, ctx);
+    if (ast.typeParams !== null) {
+      ctx.print(null, '<');
+      this.visitAllObjects(type => this.visitType(type, ctx), ast.typeParams, ctx, ',');
+      ctx.print(null, '>');
+    }
     return null;
   }
 

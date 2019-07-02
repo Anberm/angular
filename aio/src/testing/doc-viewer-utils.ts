@@ -37,7 +37,7 @@ export class TestDocViewerComponent extends DocViewerComponent {
 })
 export class TestParentComponent {
   currentDoc?: DocumentContents|null;
-  @ViewChild(DocViewerComponent) docViewer: DocViewerComponent;
+  @ViewChild(DocViewerComponent, {static: true}) docViewer: DocViewerComponent;
 }
 
 // Mock services.
@@ -56,8 +56,8 @@ export class MockTocService {
 }
 
 export class MockElementsLoader {
-  loadContainingCustomElements =
-      jasmine.createSpy('MockElementsLoader#loadContainingCustomElements');
+  loadContainedCustomElements =
+      jasmine.createSpy('MockElementsLoader#loadContainedCustomElements');
 }
 
 @NgModule({

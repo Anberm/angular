@@ -7,7 +7,7 @@
  */
 
 import {StaticSymbolResolverHost} from '@angular/compiler';
-import {CompilerOptions, MetadataCollector, MetadataReaderCache, MetadataReaderHost, createMetadataReaderCache, readMetadata} from '@angular/compiler-cli/src/language_services';
+import {CompilerOptions, MetadataCollector, MetadataReaderHost, createMetadataReaderCache, readMetadata} from '@angular/compiler-cli/src/language_services';
 import * as path from 'path';
 import * as ts from 'typescript';
 
@@ -33,7 +33,8 @@ class ReflectorModuleModuleResolutionHost implements ts.ModuleResolutionHost, Me
     return undefined !;
   }
 
-  directoryExists: (directoryName: string) => boolean;
+  // TODO(issue/24571): remove '!'.
+  directoryExists !: (directoryName: string) => boolean;
 
   getSourceFileMetadata(fileName: string) {
     const sf = this.getProgram().getSourceFile(fileName);
@@ -47,7 +48,6 @@ class ReflectorModuleModuleResolutionHost implements ts.ModuleResolutionHost, Me
 }
 
 export class ReflectorHost implements StaticSymbolResolverHost {
-  private moduleResolutionCache: ts.ModuleResolutionCache;
   private hostAdapter: ReflectorModuleModuleResolutionHost;
   private metadataReaderCache = createMetadataReaderCache();
 
@@ -55,8 +55,6 @@ export class ReflectorHost implements StaticSymbolResolverHost {
       getProgram: () => ts.Program, serviceHost: ts.LanguageServiceHost,
       private options: CompilerOptions) {
     this.hostAdapter = new ReflectorModuleModuleResolutionHost(serviceHost, getProgram);
-    this.moduleResolutionCache =
-        ts.createModuleResolutionCache(serviceHost.getCurrentDirectory(), (s) => s);
   }
 
   getMetadataFor(modulePath: string): {[key: string]: any}[]|undefined {

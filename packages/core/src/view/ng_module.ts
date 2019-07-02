@@ -6,12 +6,13 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {InjectableDef} from '../di/defs';
 import {resolveForwardRef} from '../di/forward_ref';
-import {INJECTOR, InjectFlags, Injector, setCurrentInjector} from '../di/injector';
+import {Injector} from '../di/injector';
+import {INJECTOR, setCurrentInjector} from '../di/injector_compatibility';
+import {getInjectableDef, ɵɵInjectableDef} from '../di/interface/defs';
 import {APP_ROOT} from '../di/scope';
 import {NgModuleRef} from '../linker/ng_module_factory';
-import {stringify} from '../util';
+import {stringify} from '../util/stringify';
 
 import {DepDef, DepFlags, NgModuleData, NgModuleDefinition, NgModuleProviderDef, NodeFlags} from './types';
 import {splitDepsDsl, tokenKey} from './util';
@@ -43,7 +44,7 @@ export function moduleDef(providers: NgModuleProviderDef[]): NgModuleDefinition 
   let isRoot: boolean = false;
   for (let i = 0; i < providers.length; i++) {
     const provider = providers[i];
-    if (provider.token === APP_ROOT) {
+    if (provider.token === APP_ROOT && provider.value === true) {
       isRoot = true;
     }
     if (provider.flags & NodeFlags.TypeNgModule) {
@@ -68,7 +69,10 @@ export function initNgModule(data: NgModuleData) {
   for (let i = 0; i < def.providers.length; i++) {
     const provDef = def.providers[i];
     if (!(provDef.flags & NodeFlags.LazyProvider)) {
-      providers[i] = _createProviderInstance(data, provDef);
+      // Make sure the provider has not been already initialized outside this loop.
+      if (providers[i] === undefined) {
+        providers[i] = _createProviderInstance(data, provDef);
+      }
     }
   }
 }
@@ -94,6 +98,7 @@ export function resolveNgModuleDep(
         return data;
     }
     const providerDef = data._def.providersByKey[tokenKey];
+    let injectableDef: ɵɵInjectableDef<any>|null;
     if (providerDef) {
       let providerInstance = data._providers[providerDef.index];
       if (providerInstance === undefined) {
@@ -101,11 +106,10 @@ export function resolveNgModuleDep(
             _createProviderInstance(data, providerDef);
       }
       return providerInstance === UNDEFINED_VALUE ? undefined : providerInstance;
-    } else if (depDef.token.ngInjectableDef && targetsModule(data, depDef.token.ngInjectableDef)) {
-      const injectableDef = depDef.token.ngInjectableDef as InjectableDef<any>;
-      const key = tokenKey;
+    } else if (
+        (injectableDef = getInjectableDef(depDef.token)) && targetsModule(data, injectableDef)) {
       const index = data._providers.length;
-      data._def.providersByKey[depDef.tokenKey] = {
+      data._def.providers[index] = data._def.providersByKey[depDef.tokenKey] = {
         flags: NodeFlags.TypeFactoryProvider | NodeFlags.LazyProvider,
         value: injectableDef.factory,
         deps: [], index,
@@ -115,6 +119,8 @@ export function resolveNgModuleDep(
       return (
           data._providers[index] =
               _createProviderInstance(data, data._def.providersByKey[depDef.tokenKey]));
+    } else if (depDef.flags & DepFlags.Self) {
+      return notFoundValue;
     }
     return data._parent.get(depDef.token, notFoundValue);
   } finally {
@@ -126,7 +132,7 @@ function moduleTransitivelyPresent(ngModule: NgModuleData, scope: any): boolean 
   return ngModule._def.modules.indexOf(scope) > -1;
 }
 
-function targetsModule(ngModule: NgModuleData, def: InjectableDef<any>): boolean {
+function targetsModule(ngModule: NgModuleData, def: ɵɵInjectableDef<any>): boolean {
   return def.providedIn != null && (moduleTransitivelyPresent(ngModule, def.providedIn) ||
                                     def.providedIn === 'root' && ngModule._def.isRoot);
 }
@@ -146,6 +152,15 @@ function _createProviderInstance(ngModule: NgModuleData, providerDef: NgModulePr
     case NodeFlags.TypeValueProvider:
       injectable = providerDef.value;
       break;
+  }
+
+  // The read of `ngOnDestroy` here is slightly expensive as it's megamorphic, so it should be
+  // avoided if possible. The sequence of checks here determines whether ngOnDestroy needs to be
+  // checked. It might not if the `injectable` isn't an object or if NodeFlags.OnDestroy is already
+  // set (ngOnDestroy was detected statically).
+  if (injectable !== UNDEFINED_VALUE && injectable !== null && typeof injectable === 'object' &&
+      !(providerDef.flags & NodeFlags.OnDestroy) && typeof injectable.ngOnDestroy === 'function') {
+    providerDef.flags |= NodeFlags.OnDestroy;
   }
   return injectable === undefined ? UNDEFINED_VALUE : injectable;
 }
@@ -196,12 +211,17 @@ function _callFactory(ngModule: NgModuleData, factory: any, deps: DepDef[]): any
 
 export function callNgModuleLifecycle(ngModule: NgModuleData, lifecycles: NodeFlags) {
   const def = ngModule._def;
+  const destroyed = new Set<any>();
   for (let i = 0; i < def.providers.length; i++) {
     const provDef = def.providers[i];
     if (provDef.flags & NodeFlags.OnDestroy) {
       const instance = ngModule._providers[i];
       if (instance && instance !== UNDEFINED_VALUE) {
-        instance.ngOnDestroy();
+        const onDestroy: Function|undefined = instance.ngOnDestroy;
+        if (typeof onDestroy === 'function' && !destroyed.has(instance)) {
+          onDestroy.apply(instance);
+          destroyed.add(instance);
+        }
       }
     }
   }

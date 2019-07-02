@@ -115,16 +115,13 @@ export class CompileMetadataResolver {
     return this.getGeneratedClass(dirType, cpl.hostViewClassName(dirType));
   }
 
-  getHostComponentType(dirType: any): StaticSymbol|Type {
+  getHostComponentType(dirType: any): StaticSymbol|cpl.ProxyClass {
     const name = `${cpl.identifierName({reference: dirType})}_Host`;
     if (dirType instanceof StaticSymbol) {
       return this._staticSymbolCache.get(dirType.filePath, name);
-    } else {
-      const HostClass = <any>function HostClass() {};
-      HostClass.overriddenName = name;
-
-      return HostClass;
     }
+
+    return this._createProxyClass(dirType, name);
   }
 
   private getRendererType(dirType: any): StaticSymbol|object {
@@ -910,7 +907,7 @@ export class CompileMetadataResolver {
       let isOptional = false;
       let token: any = null;
       if (Array.isArray(param)) {
-        param.forEach((paramEntry) => {
+        param.forEach((paramEntry: any) => {
           if (createHost.isTypeOf(paramEntry)) {
             isHost = true;
           } else if (createSelf.isTypeOf(paramEntry)) {
@@ -921,11 +918,12 @@ export class CompileMetadataResolver {
             isOptional = true;
           } else if (createAttribute.isTypeOf(paramEntry)) {
             isAttribute = true;
-            token = paramEntry.attributeName;
+            token = (paramEntry as any).attributeName;
           } else if (createInject.isTypeOf(paramEntry)) {
-            token = paramEntry.token;
+            token = (paramEntry as any).token;
           } else if (
-              createInjectionToken.isTypeOf(paramEntry) || paramEntry instanceof StaticSymbol) {
+              createInjectionToken.isTypeOf(paramEntry) ||
+              (paramEntry as any) instanceof StaticSymbol) {
             token = paramEntry;
           } else if (isValidType(paramEntry) && token == null) {
             token = paramEntry;
@@ -936,7 +934,7 @@ export class CompileMetadataResolver {
       }
       if (token == null) {
         hasUnknownDeps = true;
-        return null !;
+        return {};
       }
 
       return {
@@ -952,7 +950,7 @@ export class CompileMetadataResolver {
 
     if (hasUnknownDeps) {
       const depsTokens =
-          dependenciesMetadata.map((dep) => dep ? stringifyType(dep.token) : '?').join(', ');
+          dependenciesMetadata.map((dep) => dep.token ? stringifyType(dep.token) : '?').join(', ');
       const message =
           `Can't resolve all parameters for ${stringifyType(typeOrFunc)}: (${depsTokens}).`;
       if (throwOnUnknownDeps || this._config.strictInjectionParameters) {
@@ -993,7 +991,7 @@ export class CompileMetadataResolver {
           providerMeta = new cpl.ProviderMeta(provider, {useClass: provider});
         } else if (provider === void 0) {
           this._reportError(syntaxError(
-              `Encountered undefined provider! Usually this means you have a circular dependencies (might be caused by using 'barrel' index.ts files.`));
+              `Encountered undefined provider! Usually this means you have a circular dependencies. This might be caused by using 'barrel' index.ts files.`));
           return;
         } else {
           const providersInfo =
@@ -1160,7 +1158,8 @@ export class CompileMetadataResolver {
       selectors,
       first: q.first,
       descendants: q.descendants, propertyName,
-      read: q.read ? this._getTokenMetadata(q.read) : null !
+      read: q.read ? this._getTokenMetadata(q.read) : null !,
+      static: q.static
     };
   }
 

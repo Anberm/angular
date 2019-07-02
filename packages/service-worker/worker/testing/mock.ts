@@ -88,14 +88,21 @@ export class MockServerStateBuilder {
     return this;
   }
 
-  build(): MockServerState { return new MockServerState(this.resources, this.errors); }
+  build(): MockServerState {
+    // Take a "snapshot" of the current `resources` and `errors`.
+    const resources = new Map(this.resources.entries());
+    const errors = new Set(this.errors.values());
+
+    return new MockServerState(resources, errors);
+  }
 }
 
 export class MockServerState {
   private requests: Request[] = [];
   private gate: Promise<void> = Promise.resolve();
   private resolve: Function|null = null;
-  private resolveNextRequest: Function;
+  // TODO(issue/24571): remove '!'.
+  private resolveNextRequest !: Function;
   online = true;
   nextRequest: Promise<Request>;
 
@@ -113,11 +120,12 @@ export class MockServerState {
       throw new Error('Offline.');
     }
 
-    if (req.credentials === 'include') {
+    this.requests.push(req);
+
+    if ((req.credentials === 'include') || (req.mode === 'no-cors')) {
       return new MockResponse(null, {status: 0, statusText: '', type: 'opaque'});
     }
     const url = req.url.split('?')[0];
-    this.requests.push(req);
     if (this.resources.has(url)) {
       return this.resources.get(url) !.clone();
     }
@@ -186,6 +194,7 @@ export function tmpManifestSingleAssetGroup(fs: MockFileSystem): Manifest {
   files.forEach(path => { hashTable[path] = fs.lookup(path) !.hash; });
   return {
     configVersion: 1,
+    timestamp: 1234567890123,
     index: '/index.html',
     assetGroups: [
       {

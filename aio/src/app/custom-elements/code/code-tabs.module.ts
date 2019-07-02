@@ -1,12 +1,13 @@
 import { NgModule, Type } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CodeTabsComponent } from './code-tabs.component';
-import { MatTabsModule } from '@angular/material';
+import { MatCardModule } from '@angular/material/card';
+import { MatTabsModule } from '@angular/material/tabs';
 import { CodeModule } from './code.module';
 import { WithCustomElementComponent } from '../element-registry';
 
 @NgModule({
-  imports: [ CommonModule, MatTabsModule, CodeModule ],
+  imports: [ CommonModule, MatCardModule, MatTabsModule, CodeModule ],
   declarations: [ CodeTabsComponent ],
   exports: [ CodeTabsComponent ],
   entryComponents: [ CodeTabsComponent ]

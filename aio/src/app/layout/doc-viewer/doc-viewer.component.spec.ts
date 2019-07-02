@@ -177,9 +177,9 @@ describe('DocViewerComponent', () => {
       });
 
       it('should fall back to `textContent` if `innerText` is not available', () => {
-        const querySelector_ = targetEl.querySelector;
+        const querySelector = targetEl.querySelector;
         spyOn(targetEl, 'querySelector').and.callFake((selector: string) => {
-          const elem = querySelector_.call(targetEl, selector);
+          const elem = querySelector.call(targetEl, selector);
           return elem && Object.defineProperties(elem, {
             innerText: {value: undefined},
             textContent: {value: 'Text Content'},
@@ -192,9 +192,9 @@ describe('DocViewerComponent', () => {
       });
 
       it('should still use `innerText` if available but empty', () => {
-        const querySelector_ = targetEl.querySelector;
+        const querySelector = targetEl.querySelector;
         spyOn(targetEl, 'querySelector').and.callFake((selector: string) => {
-          const elem = querySelector_.call(targetEl, selector);
+          const elem = querySelector.call(targetEl, selector);
           return elem && Object.defineProperties(elem, {
             innerText: { value: '' },
             textContent: { value: 'Text Content' }
@@ -300,7 +300,7 @@ describe('DocViewerComponent', () => {
 
     beforeEach(() => {
       const elementsLoader = TestBed.get(ElementsLoader) as MockElementsLoader;
-      loadElementsSpy = elementsLoader.loadContainingCustomElements.and.returnValue(of(undefined));
+      loadElementsSpy = elementsLoader.loadContainedCustomElements.and.returnValue(of(undefined));
       prepareTitleAndTocSpy = spyOn(docViewer, 'prepareTitleAndToc');
       swapViewsSpy = spyOn(docViewer, 'swapViews').and.returnValue(of(undefined));
     });
@@ -595,7 +595,7 @@ describe('DocViewerComponent', () => {
           describe(`(.${NO_ANIMATIONS}: ${noAnimations})`, () => {
             beforeEach(() => docViewerEl.classList[noAnimations ? 'add' : 'remove'](NO_ANIMATIONS));
 
-            it('should return an observable', (done: DoneFn) => {
+            it('should return an observable', done => {
               docViewer.swapViews().subscribe(done, done.fail);
             });
 

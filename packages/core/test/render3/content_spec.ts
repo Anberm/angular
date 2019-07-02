@@ -8,205 +8,105 @@
 
 import {SelectorFlags} from '@angular/core/src/render3/interfaces/projection';
 
-import {detectChanges} from '../../src/render3/index';
-import {container, containerRefreshEnd, containerRefreshStart, elementEnd, elementStart, embeddedViewEnd, embeddedViewStart, load, loadDirective, projection, projectionDef, text} from '../../src/render3/instructions';
+import {AttributeMarker, detectChanges} from '../../src/render3/index';
+import {ɵɵcontainer, ɵɵcontainerRefreshEnd, ɵɵcontainerRefreshStart, ɵɵelement, ɵɵelementContainerEnd, ɵɵelementContainerStart, ɵɵelementEnd, ɵɵelementStart, ɵɵembeddedViewEnd, ɵɵembeddedViewStart, ɵɵprojection, ɵɵprojectionDef, ɵɵtext} from '../../src/render3/instructions/all';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
-import {createComponent, renderComponent, toHtml} from './render_util';
+import {ComponentFixture, createComponent, getDirectiveOnNode, renderComponent, toHtml} from './render_util';
 
 describe('content projection', () => {
-  it('should project content', () => {
-
-    /**
-     * <div><ng-content></ng-content></div>
-     */
-    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
-      }
-    });
-
-    /**
-     * <child>content</child>
-     */
-    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        { text(1, 'content'); }
-        elementEnd();
-      }
-    }, [Child]);
-
-    const parent = renderComponent(Parent);
-    expect(toHtml(parent)).toEqual('<child><div>content</div></child>');
-  });
-
-  it('should project content when root.', () => {
-    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        projection(1, 0);
-      }
-    });
-    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        { text(1, 'content'); }
-        elementEnd();
-      }
-    }, [Child]);
-
-    const parent = renderComponent(Parent);
-    expect(toHtml(parent)).toEqual('<child>content</child>');
-  });
-
-  it('should re-project content when root.', () => {
-    const GrandChild = createComponent('grand-child', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
-      }
-    });
-    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'grand-child');
-        { projection(2, 0); }
-        elementEnd();
-      }
-    }, [GrandChild]);
-    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        {
-          elementStart(1, 'b');
-          text(2, 'Hello');
-          elementEnd();
-          text(3, 'World!');
-        }
-        elementEnd();
-      }
-    }, [Child]);
-
-    const parent = renderComponent(Parent);
-    expect(toHtml(parent))
-        .toEqual('<child><grand-child><div><b>Hello</b>World!</div></grand-child></child>');
-  });
-
-  it('should project components', () => {
-
+  it('should project containers', () => {
     /** <div><ng-content></ng-content></div> */
-    const Child = createComponent('child', (rf: RenderFlags, ctx: any) => {
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵprojection(1); }
+        ɵɵelementEnd();
       }
-    });
-
-    const ProjectedComp = createComponent('projected-comp', (rf: RenderFlags, ctx: any) => {
-      if (rf & RenderFlags.Create) {
-        text(0, 'content');
-      }
-    });
+    }, 2);
 
     /**
      * <child>
-     *   <projected-comp></projected-comp>
+     *     (
+     *      % if (value) {
+     *        content
+     *      % }
+     *     )
      * </child>
      */
-    const Parent = createComponent('parent', (rf: RenderFlags, ctx: any) => {
-      if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        {
-          elementStart(1, 'projected-comp');
-          elementEnd();
-        }
-        elementEnd();
-      }
-    }, [Child, ProjectedComp]);
-
-    const parent = renderComponent(Parent);
-    expect(toHtml(parent))
-        .toEqual('<child><div><projected-comp>content</projected-comp></div></child>');
-  });
-
-  it('should project content with container.', () => {
-    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
-      if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
-      }
-    });
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: {value: any}) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
+        ɵɵelementStart(0, 'child');
         {
-          text(1, '(');
-          container(2);
-          text(3, ')');
+          ɵɵtext(1, '(');
+          ɵɵcontainer(2);
+          ɵɵtext(3, ')');
         }
-        elementEnd();
+        ɵɵelementEnd();
       }
       if (rf & RenderFlags.Update) {
-        containerRefreshStart(2);
+        ɵɵcontainerRefreshStart(2);
         {
           if (ctx.value) {
-            let rf0 = embeddedViewStart(0);
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
             if (rf0 & RenderFlags.Create) {
-              text(0, 'content');
+              ɵɵtext(0, 'content');
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           }
         }
-        containerRefreshEnd();
+        ɵɵcontainerRefreshEnd();
       }
-    }, [Child]);
+    }, 4, 0, [Child]);
 
     const parent = renderComponent(Parent);
     expect(toHtml(parent)).toEqual('<child><div>()</div></child>');
     parent.value = true;
     detectChanges(parent);
+
     expect(toHtml(parent)).toEqual('<child><div>(content)</div></child>');
     parent.value = false;
     detectChanges(parent);
+
     expect(toHtml(parent)).toEqual('<child><div>()</div></child>');
   });
 
-  it('should project content with container into root', () => {
+  it('should project containers into root', () => {
+    /** <ng-content></ng-content> */
     const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        projection(1, 0);
+        ɵɵprojectionDef();
+        ɵɵprojection(0);
       }
-    });
+    }, 1);
+
+    /**
+     * <child>
+     *    % if (value) {
+     *      content
+     *    % }
+     * </child>
+     */
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: {value: any}) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        { container(1); }
-        elementEnd();
+        ɵɵelementStart(0, 'child');
+        { ɵɵcontainer(1); }
+        ɵɵelementEnd();
       }
       if (rf & RenderFlags.Update) {
-        containerRefreshStart(1);
+        ɵɵcontainerRefreshStart(1);
         {
           if (ctx.value) {
-            let rf0 = embeddedViewStart(0);
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
             if (rf0 & RenderFlags.Create) {
-              text(0, 'content');
+              ɵɵtext(0, 'content');
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           }
         }
-        containerRefreshEnd();
+        ɵɵcontainerRefreshEnd();
       }
-    }, [Child]);
+    }, 2, 0, [Child]);
 
     const parent = renderComponent(Parent);
     expect(toHtml(parent)).toEqual('<child></child>');
@@ -220,44 +120,57 @@ describe('content projection', () => {
     expect(toHtml(parent)).toEqual('<child></child>');
   });
 
-  it('should project content with container and if-else.', () => {
+  it('should project containers with if-else.', () => {
+    /** <div><ng-content></ng-content></div> */
     const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵprojection(1); }
+        ɵɵelementEnd();
       }
-    });
+    }, 2);
+
+    /**
+     * <child>
+     *     (
+     *       % if (value) {
+     *         content
+     *       % } else {
+     *         else
+     *       % }
+     *     )
+     * </child>
+     */
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: {value: any}) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
+        ɵɵelementStart(0, 'child');
         {
-          text(1, '(');
-          container(2);
-          text(3, ')');
+          ɵɵtext(1, '(');
+          ɵɵcontainer(2);
+          ɵɵtext(3, ')');
         }
-        elementEnd();
+        ɵɵelementEnd();
       }
       if (rf & RenderFlags.Update) {
-        containerRefreshStart(2);
+        ɵɵcontainerRefreshStart(2);
         {
           if (ctx.value) {
-            let rf0 = embeddedViewStart(0);
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
             if (rf0 & RenderFlags.Create) {
-              text(0, 'content');
+              ɵɵtext(0, 'content');
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           } else {
-            if (embeddedViewStart(1)) {
-              text(0, 'else');
+            if (ɵɵembeddedViewStart(1, 1, 0)) {
+              ɵɵtext(0, 'else');
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           }
         }
-        containerRefreshEnd();
+        ɵɵcontainerRefreshEnd();
       }
-    }, [Child]);
+    }, 4, 0, [Child]);
 
     const parent = renderComponent(Parent);
     expect(toHtml(parent)).toEqual('<child><div>(else)</div></child>');
@@ -269,7 +182,7 @@ describe('content projection', () => {
     expect(toHtml(parent)).toEqual('<child><div>(else)</div></child>');
   });
 
-  it('should support projection in embedded views', () => {
+  it('should support projection into embedded views', () => {
     let childCmptInstance: any;
 
     /**
@@ -283,96 +196,156 @@ describe('content projection', () => {
      */
     const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { container(2); }
-        elementEnd();
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵcontainer(1); }
+        ɵɵelementEnd();
       }
       if (rf & RenderFlags.Update) {
-        containerRefreshStart(2);
+        ɵɵcontainerRefreshStart(1);
         {
           if (!ctx.skipContent) {
-            let rf0 = embeddedViewStart(0);
+            let rf0 = ɵɵembeddedViewStart(0, 2, 0);
             if (rf0 & RenderFlags.Create) {
-              elementStart(0, 'span');
-              projection(1, 0);
-              elementEnd();
+              ɵɵelementStart(0, 'span');
+              ɵɵprojection(1);
+              ɵɵelementEnd();
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           }
         }
-        containerRefreshEnd();
+        ɵɵcontainerRefreshEnd();
       }
-    });
+    }, 2, 0);
 
     /**
-     * <child>content</child>
+     * <child>
+     *   <div>text</div>
+     *   content
+     * </child>
      */
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
+        ɵɵelementStart(0, 'child');
         {
-          childCmptInstance = loadDirective(0);
-          text(1, 'content');
+          ɵɵelementStart(1, 'div');
+          { ɵɵtext(2, 'text'); }
+          ɵɵelementEnd();
+          ɵɵtext(3, 'content');
         }
-        elementEnd();
+        ɵɵelementEnd();
+
+        // testing
+        childCmptInstance = getDirectiveOnNode(0);
       }
-    }, [Child]);
+    }, 4, 0, [Child]);
 
     const parent = renderComponent(Parent);
-    expect(toHtml(parent)).toEqual('<child><div><span>content</span></div></child>');
+    expect(toHtml(parent)).toEqual('<child><div><span><div>text</div>content</span></div></child>');
 
     childCmptInstance.skipContent = true;
     detectChanges(parent);
     expect(toHtml(parent)).toEqual('<child><div></div></child>');
   });
 
-  it('should support projection in embedded views when ng-content is a root node of an embedded view',
+  it('should support projection into embedded views when no projected nodes', () => {
+    let childCmptInstance: any;
+
+    /**
+     * <div>
+     *  % if (!skipContent) {
+     *      <ng-content></ng-content>
+     *      text
+     *  % }
+     * </div>
+     */
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵcontainer(1); }
+        ɵɵelementEnd();
+      }
+      if (rf & RenderFlags.Update) {
+        ɵɵcontainerRefreshStart(1);
+        {
+          if (!ctx.skipContent) {
+            let rf0 = ɵɵembeddedViewStart(0, 2, 0);
+            if (rf0 & RenderFlags.Create) {
+              ɵɵprojection(0);
+              ɵɵtext(1, 'text');
+            }
+            ɵɵembeddedViewEnd();
+          }
+        }
+        ɵɵcontainerRefreshEnd();
+      }
+    }, 2);
+
+    /** <child></child> */
+    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelement(0, 'child');
+
+        // testing
+        childCmptInstance = getDirectiveOnNode(0);
+      }
+    }, 1, 0, [Child]);
+
+    const parent = renderComponent(Parent);
+    expect(toHtml(parent)).toEqual('<child><div>text</div></child>');
+
+    childCmptInstance.skipContent = true;
+    detectChanges(parent);
+    expect(toHtml(parent)).toEqual('<child><div></div></child>');
+  });
+
+  it('should support projection into embedded views when ng-content is a root node of an embedded view',
      () => {
        let childCmptInstance: any;
 
        /**
         * <div>
         *  % if (!skipContent) {
-        *    <ng-content></ng-content>
-        *  % }
+         *    <ng-content></ng-content>
+         *  % }
         * </div>
         */
        const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
          if (rf & RenderFlags.Create) {
-           projectionDef(0);
-           elementStart(1, 'div');
-           { container(2); }
-           elementEnd();
+           ɵɵprojectionDef();
+           ɵɵelementStart(0, 'div');
+           { ɵɵcontainer(1); }
+           ɵɵelementEnd();
          }
          if (rf & RenderFlags.Update) {
-           containerRefreshStart(2);
+           ɵɵcontainerRefreshStart(1);
            {
              if (!ctx.skipContent) {
-               let rf0 = embeddedViewStart(0);
+               let rf0 = ɵɵembeddedViewStart(0, 1, 0);
                if (rf0 & RenderFlags.Create) {
-                 projection(0, 0);
+                 ɵɵprojection(0);
                }
-               embeddedViewEnd();
+               ɵɵembeddedViewEnd();
              }
            }
-           containerRefreshEnd();
+           ɵɵcontainerRefreshEnd();
          }
-       });
+       }, 2);
 
        /**
         * <child>content</child>
         */
        const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
          if (rf & RenderFlags.Create) {
-           elementStart(0, 'child');
+           ɵɵelementStart(0, 'child');
            {
-             childCmptInstance = loadDirective(0);
-             text(1, 'content');
+             childCmptInstance = getDirectiveOnNode(0);
+             ɵɵtext(1, 'content');
            }
-           elementEnd();
+           ɵɵelementEnd();
          }
-       }, [Child]);
+       }, 2, 0, [Child]);
 
        const parent = renderComponent(Parent);
        expect(toHtml(parent)).toEqual('<child><div>content</div></child>');
@@ -382,54 +355,227 @@ describe('content projection', () => {
        expect(toHtml(parent)).toEqual('<child><div></div></child>');
      });
 
-  it('should support projection in embedded views when ng-content is a root node of an embedded view, with other nodes after',
+  it('should project containers into containers', () => {
+    /**
+     * <div>
+     *  Before (inside)
+     *  % if (!skipContent) {
+     *    <ng-content></ng-content>
+     *  % }
+     *  After (inside)
+     * </div>
+     */
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        {
+          ɵɵtext(1, 'Before (inside)-');
+          ɵɵcontainer(2);
+          ɵɵtext(3, '-After (inside)');
+        }
+        ɵɵelementEnd();
+      }
+      if (rf & RenderFlags.Update) {
+        ɵɵcontainerRefreshStart(2);
+        {
+          if (!ctx.skipContent) {
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
+            if (rf0 & RenderFlags.Create) {
+              ɵɵprojection(0);
+            }
+            ɵɵembeddedViewEnd();
+          }
+        }
+        ɵɵcontainerRefreshEnd();
+      }
+    }, 4);
+
+    /**
+     * <child>
+     *     Before text-
+     *     % if (!skipContent) {
+     *       content
+     *     % }
+     *     -After text
+     * </child>
+     */
+    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'child');
+        {
+          ɵɵtext(1, 'Before text-');
+          ɵɵcontainer(2);
+          ɵɵtext(3, '-After text');
+        }
+        ɵɵelementEnd();
+      }
+      if (rf & RenderFlags.Update) {
+        ɵɵcontainerRefreshStart(2);
+        {
+          if (!ctx.skipContent) {
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
+            if (rf0 & RenderFlags.Create) {
+              ɵɵtext(0, 'content');
+            }
+            ɵɵembeddedViewEnd();
+          }
+        }
+        ɵɵcontainerRefreshEnd();
+      }
+    }, 4, 0, [Child]);
+
+    const fixture = new ComponentFixture(Parent);
+    expect(fixture.html)
+        .toEqual(
+            '<child><div>Before (inside)-Before text-content-After text-After (inside)</div></child>');
+
+    fixture.component.skipContent = true;
+    fixture.update();
+    expect(fixture.html)
+        .toEqual(
+            '<child><div>Before (inside)-Before text--After text-After (inside)</div></child>');
+  });
+
+  it('should re-project containers into containers', () => {
+    /**
+     * <div>
+     *  % if (!skipContent) {
+     *    <ng-content></ng-content>
+     *  % }
+     * </div>
+     */
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵcontainer(1); }
+        ɵɵelementEnd();
+      }
+      if (rf & RenderFlags.Update) {
+        ɵɵcontainerRefreshStart(1);
+        {
+          if (!ctx.skipContent) {
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
+            if (rf0 & RenderFlags.Create) {
+              ɵɵprojection(0);
+            }
+            ɵɵembeddedViewEnd();
+          }
+        }
+        ɵɵcontainerRefreshEnd();
+      }
+    }, 2);
+
+    /**
+     * <child>
+     *     Before text
+     *     % if (!skipContent) {
+     *       <ng-content></ng-content>
+     *     % }
+     *     -After text
+     * </child>
+     */
+    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'child');
+        {
+          ɵɵtext(1, 'Before text');
+          ɵɵcontainer(2);
+          ɵɵtext(3, '-After text');
+        }
+        ɵɵelementEnd();
+      }
+      if (rf & RenderFlags.Update) {
+        ɵɵcontainerRefreshStart(2);
+        {
+          if (!ctx.skipContent) {
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
+            if (rf0 & RenderFlags.Create) {
+              ɵɵprojection(0);
+            }
+            ɵɵembeddedViewEnd();
+          }
+        }
+        ɵɵcontainerRefreshEnd();
+      }
+    }, 4, 0, [Child]);
+
+    let parent: any;
+    /** <parent><p>text</p></parent> */
+    const App = createComponent('app', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'parent');
+        {
+          ɵɵelementStart(1, 'p');
+          { ɵɵtext(2, 'text'); }
+          ɵɵelementEnd();
+        }
+        ɵɵelementEnd();
+        // testing
+        parent = getDirectiveOnNode(0);
+      }
+    }, 3, 0, [Parent]);
+
+    const fixture = new ComponentFixture(App);
+    expect(fixture.html)
+        .toEqual('<parent><child><div>Before text<p>text</p>-After text</div></child></parent>');
+
+    parent.skipContent = true;
+    fixture.update();
+    expect(fixture.html)
+        .toEqual('<parent><child><div>Before text-After text</div></child></parent>');
+  });
+
+  it('should support projection into embedded views when ng-content is a root node of an embedded view, with other nodes after',
      () => {
        let childCmptInstance: any;
 
        /**
         * <div>
         *  % if (!skipContent) {
-        *    before-<ng-content></ng-content>-after
-        *  % }
+         *    before-<ng-content></ng-content>-after
+         *  % }
         * </div>
         */
        const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
          if (rf & RenderFlags.Create) {
-           projectionDef(0);
-           elementStart(1, 'div');
-           { container(2); }
-           elementEnd();
+           ɵɵprojectionDef();
+           ɵɵelementStart(0, 'div');
+           { ɵɵcontainer(1); }
+           ɵɵelementEnd();
          }
          if (rf & RenderFlags.Update) {
-           containerRefreshStart(2);
+           ɵɵcontainerRefreshStart(1);
            {
              if (!ctx.skipContent) {
-               let rf0 = embeddedViewStart(0);
+               let rf0 = ɵɵembeddedViewStart(0, 3, 0);
                if (rf0 & RenderFlags.Create) {
-                 text(0, 'before-');
-                 projection(1, 0);
-                 text(2, '-after');
+                 ɵɵtext(0, 'before-');
+                 ɵɵprojection(1);
+                 ɵɵtext(2, '-after');
                }
-               embeddedViewEnd();
+               ɵɵembeddedViewEnd();
              }
            }
-           containerRefreshEnd();
+           ɵɵcontainerRefreshEnd();
          }
-       });
+       }, 2);
 
        /**
         * <child>content</child>
         */
        const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
          if (rf & RenderFlags.Create) {
-           elementStart(0, 'child');
+           ɵɵelementStart(0, 'child');
            {
-             childCmptInstance = loadDirective(0);
-             text(1, 'content');
+             childCmptInstance = getDirectiveOnNode(0);
+             ɵɵtext(1, 'content');
            }
-           elementEnd();
+           ɵɵelementEnd();
          }
-       }, [Child]);
+       }, 2, 0, [Child]);
 
        const parent = renderComponent(Parent);
        expect(toHtml(parent)).toEqual('<child><div>before-content-after</div></child>');
@@ -446,26 +592,26 @@ describe('content projection', () => {
      */
     const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        elementStart(1, 'div');
-        { projection(2, 0); }
-        elementEnd();
-        elementStart(3, 'span');
-        { projection(4, 0); }
-        elementEnd();
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'div');
+        { ɵɵprojection(1); }
+        ɵɵelementEnd();
+        ɵɵelementStart(2, 'span');
+        { ɵɵprojection(3); }
+        ɵɵelementEnd();
       }
-    });
+    }, 4);
 
     /**
      * <child>content</child>
      */
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
-        { text(1, 'content'); }
-        elementEnd();
+        ɵɵelementStart(0, 'child');
+        { ɵɵtext(1, 'content'); }
+        ɵɵelementEnd();
       }
-    }, [Child]);
+    }, 2, 0, [Child]);
 
     const parent = renderComponent(Parent);
     expect(toHtml(parent)).toEqual('<child><div></div><span>content</span></child>');
@@ -477,7 +623,7 @@ describe('content projection', () => {
    * being re-assigned from one parent to another. Proposal: have compiler
    * to remove all but the latest occurrence of <ng-content> so we generate
    * only one P(n, m, 0) instruction. It would make it consistent with the
-   * current Angular behaviour:
+   * current Angular behavior:
    * http://plnkr.co/edit/OAYkNawTDPkYBFTqovTP?p=preview
    */
   it('should project nodes into the last available ng-content', () => {
@@ -492,40 +638,40 @@ describe('content projection', () => {
      */
     const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        projectionDef(0);
-        projection(1, 0);
-        elementStart(2, 'div');
-        { container(3); }
-        elementEnd();
+        ɵɵprojectionDef();
+        ɵɵprojection(0);
+        ɵɵelementStart(1, 'div');
+        { ɵɵcontainer(2); }
+        ɵɵelementEnd();
       }
       if (rf & RenderFlags.Update) {
-        containerRefreshStart(3);
+        ɵɵcontainerRefreshStart(2);
         {
           if (ctx.show) {
-            let rf0 = embeddedViewStart(0);
+            let rf0 = ɵɵembeddedViewStart(0, 1, 0);
             if (rf0 & RenderFlags.Create) {
-              projection(0, 0);
+              ɵɵprojection(0);
             }
-            embeddedViewEnd();
+            ɵɵembeddedViewEnd();
           }
         }
-        containerRefreshEnd();
+        ɵɵcontainerRefreshEnd();
       }
-    });
+    }, 3);
 
     /**
      * <child>content</child>
      */
     const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
       if (rf & RenderFlags.Create) {
-        elementStart(0, 'child');
+        ɵɵelementStart(0, 'child');
         {
-          childCmptInstance = loadDirective(0);
-          text(1, 'content');
+          childCmptInstance = getDirectiveOnNode(0);
+          ɵɵtext(1, 'content');
         }
-        elementEnd();
+        ɵɵelementEnd();
       }
-    }, [Child]);
+    }, 2, 0, [Child]);
 
     const parent = renderComponent(Parent);
     expect(toHtml(parent)).toEqual('<child>content<div></div></child>');
@@ -533,6 +679,229 @@ describe('content projection', () => {
     childCmptInstance.show = true;
     detectChanges(parent);
     expect(toHtml(parent)).toEqual('<child><div>content</div></child>');
+  });
+
+  it('should project with multiple instances of a component with projection', () => {
+    const ProjectionComp = createComponent('projection-comp', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵtext(0, 'Before');
+        ɵɵprojection(1);
+        ɵɵtext(2, 'After');
+      }
+    }, 3);
+
+    /**
+     * <projection-comp>
+     *     <div>A</div>
+     *     <p>123</p>
+     * </projection-comp>
+     * <projection-comp>
+     *     <div>B</div>
+     *     <p>456</p>
+     * </projection-comp>
+     */
+    const AppComp = createComponent('app-comp', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'projection-comp');
+        {
+          ɵɵelementStart(1, 'div');
+          { ɵɵtext(2, 'A'); }
+          ɵɵelementEnd();
+          ɵɵelementStart(3, 'p');
+          { ɵɵtext(4, '123'); }
+          ɵɵelementEnd();
+        }
+        ɵɵelementEnd();
+        ɵɵelementStart(5, 'projection-comp');
+        {
+          ɵɵelementStart(6, 'div');
+          { ɵɵtext(7, 'B'); }
+          ɵɵelementEnd();
+          ɵɵelementStart(8, 'p');
+          { ɵɵtext(9, '456'); }
+          ɵɵelementEnd();
+        }
+        ɵɵelementEnd();
+      }
+    }, 10, 0, [ProjectionComp]);
+
+    const fixture = new ComponentFixture(AppComp);
+    fixture.update();
+    expect(fixture.html)
+        .toEqual(
+            '<projection-comp>Before<div>A</div><p>123</p>After</projection-comp>' +
+            '<projection-comp>Before<div>B</div><p>456</p>After</projection-comp>');
+  });
+
+  it('should re-project with multiple instances of a component with projection', () => {
+    /**
+     * Before
+     * <ng-content></ng-content>
+     * After
+     */
+    const ProjectionComp = createComponent('projection-comp', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵtext(0, 'Before');
+        ɵɵprojection(1);
+        ɵɵtext(2, 'After');
+      }
+    }, 3);
+
+    /**
+     * <projection-comp>
+     *     <div>A</div>
+     *     <ng-content></ng-content>
+     *     <p>123</p>
+     * </projection-comp>
+     * <projection-comp>
+     *     <div>B</div>
+     *     <p>456</p>
+     * </projection-comp>
+     */
+    const ProjectionParent = createComponent('parent-comp', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'projection-comp');
+        {
+          ɵɵelementStart(1, 'div');
+          { ɵɵtext(2, 'A'); }
+          ɵɵelementEnd();
+          ɵɵprojection(3, 0);
+          ɵɵelementStart(4, 'p');
+          { ɵɵtext(5, '123'); }
+          ɵɵelementEnd();
+        }
+        ɵɵelementEnd();
+        ɵɵelementStart(6, 'projection-comp');
+        {
+          ɵɵelementStart(7, 'div');
+          { ɵɵtext(8, 'B'); }
+          ɵɵelementEnd();
+          ɵɵelementStart(9, 'p');
+          { ɵɵtext(10, '456'); }
+          ɵɵelementEnd();
+        }
+        ɵɵelementEnd();
+      }
+    }, 11, 0, [ProjectionComp]);
+
+    /**
+     * <parent-comp>
+     *    **ABC**
+     * </parent-comp>
+     * <parent-comp>
+     *    **DEF**
+     * </parent-comp>
+     */
+    const AppComp = createComponent('app-comp', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'parent-comp');
+        { ɵɵtext(1, '**ABC**'); }
+        ɵɵelementEnd();
+        ɵɵelementStart(2, 'parent-comp');
+        { ɵɵtext(3, '**DEF**'); }
+        ɵɵelementEnd();
+      }
+    }, 4, 0, [ProjectionParent]);
+
+    const fixture = new ComponentFixture(AppComp);
+    fixture.update();
+    expect(fixture.html)
+        .toEqual(
+            '<parent-comp>' +
+            '<projection-comp>Before<div>A</div>**ABC**<p>123</p>After</projection-comp>' +
+            '<projection-comp>Before<div>B</div><p>456</p>After</projection-comp></parent-comp>' +
+            '<parent-comp>' +
+            '<projection-comp>Before<div>A</div>**DEF**<p>123</p>After</projection-comp>' +
+            '<projection-comp>Before<div>B</div><p>456</p>After</projection-comp></parent-comp>');
+  });
+
+  it('should project ng-container at the content root', () => {
+
+    `<ng-content></ng-content>`;
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵprojection(0);
+      }
+    }, 1);
+
+    `<child>
+      <ng-container>
+        <ng-container>
+          content
+        </ng-container>
+      </ng-container>
+    </child>`;
+    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'child');
+        {
+          ɵɵelementContainerStart(1);
+          {
+            ɵɵelementContainerStart(2);
+            { ɵɵtext(3, 'content'); }
+            ɵɵelementContainerEnd();
+          }
+          ɵɵelementContainerEnd();
+        }
+        ɵɵelementEnd();
+      }
+    }, 4, 0, [Child]);
+
+    const parent = renderComponent(Parent);
+    expect(toHtml(parent)).toEqual('<child>content</child>');
+  });
+
+  it('should re-project ng-container at the content root', () => {
+
+    `<ng-content></ng-content>`;
+    const GrandChild = createComponent('grand-child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵprojection(0);
+      }
+    }, 1);
+
+    `<grand-child>
+      <ng-content></ng-content>
+    </grand-child>`;
+    const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵprojectionDef();
+        ɵɵelementStart(0, 'grand-child');
+        { ɵɵprojection(1); }
+        ɵɵelementEnd();
+      }
+    }, 2, 0, [GrandChild]);
+
+    `<child>
+      <ng-container>
+        <ng-container>
+          content
+        </ng-container>
+      </ng-container>
+    </child>`;
+    const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
+      if (rf & RenderFlags.Create) {
+        ɵɵelementStart(0, 'child');
+        {
+          ɵɵelementContainerStart(1);
+          {
+            ɵɵelementContainerStart(2);
+            { ɵɵtext(3, 'content'); }
+            ɵɵelementContainerEnd();
+          }
+          ɵɵelementContainerEnd();
+        }
+        ɵɵelementEnd();
+      }
+    }, 4, 0, [Child]);
+
+    const parent = renderComponent(Parent);
+    expect(toHtml(parent)).toEqual('<child><grand-child>content</grand-child></child>');
   });
 
   describe('with selectors', () => {
@@ -544,17 +913,15 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(
-              0, [[['span', 'title', 'toFirst']], [['span', 'title', 'toSecond']]],
-              ['span[title=toFirst]', 'span[title=toSecond]']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0, 1); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0, 2); }
-          elementEnd();
+          ɵɵprojectionDef(['*', [['span', 'title', 'toFirst']], [['span', 'title', 'toSecond']]]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1, 1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3, 2); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -564,18 +931,18 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span', ['title', 'toFirst']);
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span', ['title', 'toSecond']);
-            { text(4, '2'); }
-            elementEnd();
+            ɵɵelementStart(1, 'span', ['title', 'toFirst']);
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span', ['title', 'toSecond']);
+            { ɵɵtext(4, '2'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 5, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -590,21 +957,18 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(
-              0,
-              [
-                [['span', SelectorFlags.CLASS, 'toFirst']],
-                [['span', SelectorFlags.CLASS, 'toSecond']]
-              ],
-              ['span.toFirst', 'span.toSecond']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0, 1); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0, 2); }
-          elementEnd();
+          ɵɵprojectionDef([
+            '*', [['span', SelectorFlags.CLASS, 'toFirst']],
+            [['span', SelectorFlags.CLASS, 'toSecond']]
+          ]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1, 1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3, 2); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -614,18 +978,18 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span', ['class', 'toFirst']);
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span', ['class', 'toSecond']);
-            { text(4, '2'); }
-            elementEnd();
+            ɵɵelementStart(1, 'span', ['class', 'toFirst']);
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span', ['class', 'toSecond']);
+            { ɵɵtext(4, '2'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 5, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -640,21 +1004,18 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(
-              0,
-              [
-                [['span', SelectorFlags.CLASS, 'toFirst']],
-                [['span', SelectorFlags.CLASS, 'toSecond']]
-              ],
-              ['span.toFirst', 'span.toSecond']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0, 1); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0, 2); }
-          elementEnd();
+          ɵɵprojectionDef([
+            '*', [['span', SelectorFlags.CLASS, 'toFirst']],
+            [['span', SelectorFlags.CLASS, 'toSecond']]
+          ]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1, 1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3, 2); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -664,18 +1025,18 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span', ['class', 'other toFirst']);
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span', ['class', 'toSecond noise']);
-            { text(4, '2'); }
-            elementEnd();
+            ɵɵelementStart(1, 'span', ['class', 'other toFirst']);
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span', ['class', 'toSecond noise']);
+            { ɵɵtext(4, '2'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 5, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -690,17 +1051,15 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(
-              0, [[['span']], [['span', SelectorFlags.CLASS, 'toSecond']]],
-              ['span', 'span.toSecond']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0, 1); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0, 2); }
-          elementEnd();
+          ɵɵprojectionDef(['*', [['span']], [['span', SelectorFlags.CLASS, 'toSecond']]]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1, 1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3, 2); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -710,18 +1069,18 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span', ['class', 'toFirst']);
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span', ['class', 'toSecond']);
-            { text(4, '2'); }
-            elementEnd();
+            ɵɵelementStart(1, 'span', ['class', 'toFirst']);
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span', ['class', 'toSecond']);
+            { ɵɵtext(4, '2'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 5, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -736,15 +1095,15 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0, [[['span', SelectorFlags.CLASS, 'toFirst']]], ['span.toFirst']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0, 1); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0); }
-          elementEnd();
+          ɵɵprojectionDef(['*', [['span', SelectorFlags.CLASS, 'toFirst']]]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1, 1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -754,19 +1113,19 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span', ['class', 'toFirst']);
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span');
-            { text(4, 'remaining'); }
-            elementEnd();
-            text(5, 'more remaining');
+            ɵɵelementStart(1, 'span', ['class', 'toFirst']);
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span');
+            { ɵɵtext(4, 'remaining'); }
+            ɵɵelementEnd();
+            ɵɵtext(5, 'more remaining');
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 6, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -781,15 +1140,15 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0, [[['span', SelectorFlags.CLASS, 'toSecond']]], ['span.toSecond']);
-          elementStart(1, 'div', ['id', 'first']);
-          { projection(2, 0); }
-          elementEnd();
-          elementStart(3, 'div', ['id', 'second']);
-          { projection(4, 0, 1); }
-          elementEnd();
+          ɵɵprojectionDef(['*', [['span', SelectorFlags.CLASS, 'toSecond']]]);
+          ɵɵelementStart(0, 'div', ['id', 'first']);
+          { ɵɵprojection(1); }
+          ɵɵelementEnd();
+          ɵɵelementStart(2, 'div', ['id', 'second']);
+          { ɵɵprojection(3, 1); }
+          ɵɵelementEnd();
         }
-      });
+      }, 4);
 
       /**
        * <child>
@@ -800,19 +1159,19 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span');
-            { text(2, '1'); }
-            elementEnd();
-            elementStart(3, 'span', ['class', 'toSecond']);
-            { text(4, '2'); }
-            elementEnd();
-            text(5, 'remaining');
+            ɵɵelementStart(1, 'span');
+            { ɵɵtext(2, '1'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'span', ['class', 'toSecond']);
+            { ɵɵtext(4, '2'); }
+            ɵɵelementEnd();
+            ɵɵtext(5, 'remaining');
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 6, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -833,13 +1192,12 @@ describe('content projection', () => {
        */
       const GrandChild = createComponent('grand-child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0, [[['span']]], ['span']);
-          projection(1, 0, 1);
-          elementStart(2, 'hr');
-          elementEnd();
-          projection(3, 0, 0);
+          ɵɵprojectionDef(['*', [['span']]]);
+          ɵɵprojection(0, 1);
+          ɵɵelement(1, 'hr');
+          ɵɵprojection(2);
         }
-      });
+      }, 3);
 
       /**
        *  <grand-child>
@@ -849,17 +1207,17 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0);
-          elementStart(1, 'grand-child');
+          ɵɵprojectionDef();
+          ɵɵelementStart(0, 'grand-child');
           {
-            projection(2, 0);
-            elementStart(3, 'span');
-            { text(4, 'in child template'); }
-            elementEnd();
+            ɵɵprojection(1);
+            ɵɵelementStart(2, 'span');
+            { ɵɵtext(3, 'in child template'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [GrandChild]);
+      }, 4, 0, [GrandChild]);
 
       /**
        * <child>
@@ -870,15 +1228,15 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'span');
-            { text(2, 'parent content'); }
-            elementEnd();
+            ɵɵelementStart(1, 'span');
+            { ɵɵtext(2, 'parent content'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 3, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent))
@@ -895,15 +1253,12 @@ describe('content projection', () => {
        */
       const Card = createComponent('card', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(
-              0, [[['', 'card-title', '']], [['', 'card-content', '']]],
-              ['[card-title]', '[card-content]']);
-          projection(1, 0, 1);
-          elementStart(2, 'hr');
-          elementEnd();
-          projection(3, 0, 2);
+          ɵɵprojectionDef(['*', [['', 'card-title', '']], [['', 'card-content', '']]]);
+          ɵɵprojection(0, 1);
+          ɵɵelement(1, 'hr');
+          ɵɵprojection(2, 2);
         }
-      });
+      }, 3);
 
       /**
        * <card>
@@ -913,17 +1268,17 @@ describe('content projection', () => {
        */
       const CardWithTitle = createComponent('card-with-title', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0);
-          elementStart(1, 'card');
+          ɵɵprojectionDef();
+          ɵɵelementStart(0, 'card');
           {
-            elementStart(2, 'h1', ['card-title', '']);
-            { text(3, 'Title'); }
-            elementEnd();
-            projection(4, 0, 0, ['card-content', '']);
+            ɵɵelementStart(1, 'h1', ['card-title', '']);
+            { ɵɵtext(2, 'Title'); }
+            ɵɵelementEnd();
+            ɵɵprojection(3, 0, ['card-content', '']);
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Card]);
+      }, 4, 0, [Card]);
 
       /**
        * <card-with-title>
@@ -932,75 +1287,16 @@ describe('content projection', () => {
        */
       const App = createComponent('app', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'card-with-title');
-          { text(1, 'content'); }
-          elementEnd();
+          ɵɵelementStart(0, 'card-with-title');
+          { ɵɵtext(1, 'content'); }
+          ɵɵelementEnd();
         }
-      }, [CardWithTitle]);
+      }, 2, 0, [CardWithTitle]);
 
       const app = renderComponent(App);
       expect(toHtml(app))
           .toEqual(
               '<card-with-title><card><h1 card-title="">Title</h1><hr>content</card></card-with-title>');
-    });
-
-
-    it('should support ngProjectAs on elements (including <ng-content>)', () => {
-
-      /**
-       * <ng-content select="[card-title]"></ng-content>
-       * <hr>
-       * <ng-content select="[card-content]"></ng-content>
-       */
-      const Card = createComponent('card', function(rf: RenderFlags, ctx: any) {
-        if (rf & RenderFlags.Create) {
-          projectionDef(
-              0, [[['', 'card-title', '']], [['', 'card-content', '']]],
-              ['[card-title]', '[card-content]']);
-          projection(1, 0, 1);
-          elementStart(2, 'hr');
-          elementEnd();
-          projection(3, 0, 2);
-        }
-      });
-
-      /**
-       * <card>
-       *  <h1 ngProjectAs="[card-title]>Title</h1>
-       *  <ng-content ngProjectAs="[card-content]"></ng-content>
-       * </card>
-       */
-      const CardWithTitle = createComponent('card-with-title', function(rf: RenderFlags, ctx: any) {
-        if (rf & RenderFlags.Create) {
-          projectionDef(0);
-          elementStart(1, 'card');
-          {
-            elementStart(2, 'h1', ['ngProjectAs', '[card-title]']);
-            { text(3, 'Title'); }
-            elementEnd();
-            projection(4, 0, 0, ['ngProjectAs', '[card-content]']);
-          }
-          elementEnd();
-        }
-      }, [Card]);
-
-      /**
-       * <card-with-title>
-       *  content
-       * </card-with-title>
-       */
-      const App = createComponent('app', function(rf: RenderFlags, ctx: any) {
-        if (rf & RenderFlags.Create) {
-          elementStart(0, 'card-with-title');
-          { text(1, 'content'); }
-          elementEnd();
-        }
-      }, [CardWithTitle]);
-
-      const app = renderComponent(App);
-      expect(toHtml(app))
-          .toEqual('<card-with-title><card><h1>Title</h1><hr>content</card></card-with-title>');
-
     });
 
     it('should not match selectors against node having ngProjectAs attribute', function() {
@@ -1010,10 +1306,10 @@ describe('content projection', () => {
        */
       const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          projectionDef(0, [[['div']]], ['div']);
-          projection(1, 0, 1);
+          ɵɵprojectionDef(['*', [['div']]]);
+          ɵɵprojection(0, 1);
         }
-      });
+      }, 1);
 
       /**
        * <child>
@@ -1023,70 +1319,22 @@ describe('content projection', () => {
        */
       const Parent = createComponent('parent', function(rf: RenderFlags, ctx: any) {
         if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
+          ɵɵelementStart(0, 'child');
           {
-            elementStart(1, 'div', ['ngProjectAs', 'span']);
-            { text(2, 'should not project'); }
-            elementEnd();
-            elementStart(3, 'div');
-            { text(4, 'should project'); }
-            elementEnd();
+            ɵɵelementStart(1, 'div', [AttributeMarker.ProjectAs, ['span']]);
+            { ɵɵtext(2, 'should not project'); }
+            ɵɵelementEnd();
+            ɵɵelementStart(3, 'div');
+            { ɵɵtext(4, 'should project'); }
+            ɵɵelementEnd();
           }
-          elementEnd();
+          ɵɵelementEnd();
         }
-      }, [Child]);
+      }, 5, 0, [Child]);
 
       const parent = renderComponent(Parent);
       expect(toHtml(parent)).toEqual('<child><div>should project</div></child>');
     });
-
-    it('should match selectors against projected containers', () => {
-
-      /**
-       * <span>
-       *  <ng-content select="div"></ng-content>
-       * </span>
-       */
-      const Child = createComponent('child', function(rf: RenderFlags, ctx: any) {
-        if (rf & RenderFlags.Create) {
-          projectionDef(0, [[['div']]], ['div']);
-          elementStart(1, 'span');
-          { projection(2, 0, 1); }
-          elementEnd();
-        }
-      });
-
-      /**
-       * <child>
-       *   <div *ngIf="true">content</div>
-       * </child>
-       */
-      const Parent = createComponent('parent', function(rf: RenderFlags, ctx: {value: any}) {
-        if (rf & RenderFlags.Create) {
-          elementStart(0, 'child');
-          { container(1, undefined, 'div'); }
-          elementEnd();
-        }
-        if (rf & RenderFlags.Update) {
-          containerRefreshStart(1);
-          {
-            if (true) {
-              let rf0 = embeddedViewStart(0);
-              if (rf0 & RenderFlags.Create) {
-                elementStart(0, 'div');
-                { text(1, 'content'); }
-                elementEnd();
-              }
-              embeddedViewEnd();
-            }
-          }
-          containerRefreshEnd();
-        }
-      }, [Child]);
-      const parent = renderComponent(Parent);
-      expect(toHtml(parent)).toEqual('<child><span><div>content</div></span></child>');
-    });
-
   });
 
 });

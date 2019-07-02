@@ -12,7 +12,8 @@ import {Evaluator, errorSymbol, recordMapEntry} from './evaluator';
 import {ClassMetadata, ConstructorMetadata, FunctionMetadata, InterfaceMetadata, METADATA_VERSION, MemberMetadata, MetadataEntry, MetadataError, MetadataMap, MetadataSymbolicBinaryExpression, MetadataSymbolicCallExpression, MetadataSymbolicExpression, MetadataSymbolicIfExpression, MetadataSymbolicIndexExpression, MetadataSymbolicPrefixExpression, MetadataSymbolicReferenceExpression, MetadataSymbolicSelectExpression, MetadataSymbolicSpreadExpression, MetadataValue, MethodMetadata, ModuleExportMetadata, ModuleMetadata, isClassMetadata, isConstructorMetadata, isFunctionMetadata, isMetadataError, isMetadataGlobalReferenceExpression, isMetadataImportDefaultReference, isMetadataImportedSymbolReferenceExpression, isMetadataSymbolicExpression, isMetadataSymbolicReferenceExpression, isMetadataSymbolicSelectExpression, isMethodMetadata} from './schema';
 import {Symbols} from './symbols';
 
-const isStatic = (node: ts.Node) => ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Static;
+const isStatic = (node: ts.Declaration) =>
+    ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Static;
 
 /**
  * A set of collector options to use when collecting metadata.
@@ -277,8 +278,8 @@ export class MetadataCollector {
       }
     });
 
-    const isExport = (node: ts.Node) =>
-        sourceFile.isDeclarationFile || ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export;
+    const isExport = (node: ts.Node) => sourceFile.isDeclarationFile ||
+        ts.getCombinedModifierFlags(node as ts.Declaration) & ts.ModifierFlags.Export;
     const isExportedIdentifier = (identifier?: ts.Identifier) =>
         identifier && exportMap.has(identifier.text);
     const isExported =
@@ -417,8 +418,9 @@ export class MetadataCollector {
             const maybeFunc = maybeGetSimpleFunction(functionDeclaration);
             if (name) {
               if (!metadata) metadata = {};
-              metadata[name] =
-                  maybeFunc ? recordEntry(maybeFunc.func, node) : {__symbolic: 'function'};
+              // TODO(alxhub): The literal here is not valid FunctionMetadata.
+              metadata[name] = maybeFunc ? recordEntry(maybeFunc.func, node) :
+                                           ({ __symbolic: 'function' } as any);
             }
           }
           break;
@@ -447,13 +449,15 @@ export class MetadataCollector {
               if (typeof enumValue === 'number') {
                 nextDefaultValue = enumValue + 1;
               } else if (name) {
+                // TODO(alxhub): 'left' here has a name propery which is not valid for
+                // MetadataSymbolicSelectExpression.
                 nextDefaultValue = {
                   __symbolic: 'binary',
                   operator: '+',
                   left: {
                     __symbolic: 'select',
                     expression: recordEntry({__symbolic: 'reference', name: enumName}, node), name
-                  }
+                  } as any,
                 };
               } else {
                 nextDefaultValue =

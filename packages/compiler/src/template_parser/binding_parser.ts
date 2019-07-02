@@ -8,8 +8,7 @@
 
 import {CompileDirectiveSummary, CompilePipeSummary} from '../compile_metadata';
 import {SecurityContext} from '../core';
-import {ASTWithSource, BindingPipe, EmptyExpr, ParserError, RecursiveAstVisitor, TemplateBinding} from '../expression_parser/ast';
-import {BoundElementBindingType, BoundElementProperty, ParsedEvent, ParsedEventType, ParsedProperty, ParsedPropertyType, ParsedVariable} from '../expression_parser/ast';
+import {ASTWithSource, BindingPipe, BindingType, BoundElementProperty, EmptyExpr, ParsedEvent, ParsedEventType, ParsedProperty, ParsedPropertyType, ParsedVariable, ParserError, RecursiveAstVisitor, TemplateBinding} from '../expression_parser/ast';
 import {Parser} from '../expression_parser/parser';
 import {InterpolationConfig} from '../ml_parser/interpolation_config';
 import {mergeNsAndName} from '../ml_parser/tags';
@@ -17,8 +16,6 @@ import {ParseError, ParseErrorLevel, ParseSourceSpan} from '../parse_util';
 import {ElementSchemaRegistry} from '../schema/element_schema_registry';
 import {CssSelector} from '../selector';
 import {splitAtColon, splitAtPeriod} from '../util';
-
-import {BoundElementPropertyAst, PropertyBindingType} from './template_ast';
 
 const PROPERTY_PARTS_SEPARATOR = '.';
 const ATTRIBUTE_PREFIX = 'attr';
@@ -32,12 +29,13 @@ const ANIMATE_PROP_PREFIX = 'animate-';
  */
 export class BindingParser {
   pipesByName: Map<string, CompilePipeSummary>|null = null;
+
   private _usedPipes: Map<string, CompilePipeSummary> = new Map();
 
   constructor(
       private _exprParser: Parser, private _interpolationConfig: InterpolationConfig,
       private _schemaRegistry: ElementSchemaRegistry, pipes: CompilePipeSummary[]|null,
-      private _targetErrors: ParseError[]) {
+      public errors: ParseError[]) {
     // When the `pipes` parameter is `null`, do not check for used pipes
     // This is used in IVY when we might not know the available pipes at compile time
     if (pipes) {
@@ -46,6 +44,8 @@ export class BindingParser {
       this.pipesByName = pipesByName;
     }
   }
+
+  get interpolationConfig(): InterpolationConfig { return this._interpolationConfig; }
 
   getUsedPipes(): CompilePipeSummary[] { return Array.from(this._usedPipes.values()); }
 
@@ -83,7 +83,8 @@ export class BindingParser {
       Object.keys(dirMeta.hostListeners).forEach(propName => {
         const expression = dirMeta.hostListeners[propName];
         if (typeof expression === 'string') {
-          this.parseEvent(propName, expression, sourceSpan, [], targetEvents);
+          // TODO: pass a more accurate handlerSpan for this event.
+          this.parseEvent(propName, expression, sourceSpan, sourceSpan, [], targetEvents);
         } else {
           this._reportError(
               `Value of the host listener "${propName}" needs to be a string representing an expression but got "${expression}" (${typeof expression})`,
@@ -223,7 +224,7 @@ export class BindingParser {
 
   private _parseBinding(value: string, isHostBinding: boolean, sourceSpan: ParseSourceSpan):
       ASTWithSource {
-    const sourceInfo = sourceSpan.start.toString();
+    const sourceInfo = (sourceSpan && sourceSpan.start || '(unknown)').toString();
 
     try {
       const ast = isHostBinding ?
@@ -238,25 +239,28 @@ export class BindingParser {
     }
   }
 
-  createBoundElementProperty(elementSelector: string, boundProp: ParsedProperty):
-      BoundElementProperty {
+  createBoundElementProperty(
+      elementSelector: string, boundProp: ParsedProperty, skipValidation: boolean = false,
+      mapPropertyName: boolean = true): BoundElementProperty {
     if (boundProp.isAnimation) {
       return new BoundElementProperty(
-          boundProp.name, BoundElementBindingType.Animation, SecurityContext.NONE,
-          boundProp.expression, null, boundProp.sourceSpan);
+          boundProp.name, BindingType.Animation, SecurityContext.NONE, boundProp.expression, null,
+          boundProp.sourceSpan);
     }
 
     let unit: string|null = null;
-    let bindingType: BoundElementBindingType = undefined !;
+    let bindingType: BindingType = undefined !;
     let boundPropertyName: string|null = null;
     const parts = boundProp.name.split(PROPERTY_PARTS_SEPARATOR);
     let securityContexts: SecurityContext[] = undefined !;
 
-    // Check check for special cases (prefix style, attr, class)
+    // Check for special cases (prefix style, attr, class)
     if (parts.length > 1) {
       if (parts[0] == ATTRIBUTE_PREFIX) {
         boundPropertyName = parts[1];
-        this._validatePropertyOrAttributeName(boundPropertyName, boundProp.sourceSpan, true);
+        if (!skipValidation) {
+          this._validatePropertyOrAttributeName(boundPropertyName, boundProp.sourceSpan, true);
+        }
         securityContexts = calcPossibleSecurityContexts(
             this._schemaRegistry, elementSelector, boundPropertyName, true);
 
@@ -267,26 +271,29 @@ export class BindingParser {
           boundPropertyName = mergeNsAndName(ns, name);
         }
 
-        bindingType = BoundElementBindingType.Attribute;
+        bindingType = BindingType.Attribute;
       } else if (parts[0] == CLASS_PREFIX) {
         boundPropertyName = parts[1];
-        bindingType = BoundElementBindingType.Class;
+        bindingType = BindingType.Class;
         securityContexts = [SecurityContext.NONE];
       } else if (parts[0] == STYLE_PREFIX) {
         unit = parts.length > 2 ? parts[2] : null;
         boundPropertyName = parts[1];
-        bindingType = BoundElementBindingType.Style;
+        bindingType = BindingType.Style;
         securityContexts = [SecurityContext.STYLE];
       }
     }
 
     // If not a special case, use the full property name
     if (boundPropertyName === null) {
-      boundPropertyName = this._schemaRegistry.getMappedPropName(boundProp.name);
+      const mappedPropName = this._schemaRegistry.getMappedPropName(boundProp.name);
+      boundPropertyName = mapPropertyName ? mappedPropName : boundProp.name;
       securityContexts = calcPossibleSecurityContexts(
-          this._schemaRegistry, elementSelector, boundPropertyName, false);
-      bindingType = BoundElementBindingType.Property;
-      this._validatePropertyOrAttributeName(boundPropertyName, boundProp.sourceSpan, false);
+          this._schemaRegistry, elementSelector, mappedPropName, false);
+      bindingType = BindingType.Property;
+      if (!skipValidation) {
+        this._validatePropertyOrAttributeName(mappedPropName, boundProp.sourceSpan, false);
+      }
     }
 
     return new BoundElementProperty(
@@ -295,18 +302,26 @@ export class BindingParser {
   }
 
   parseEvent(
-      name: string, expression: string, sourceSpan: ParseSourceSpan,
+      name: string, expression: string, sourceSpan: ParseSourceSpan, handlerSpan: ParseSourceSpan,
       targetMatchableAttrs: string[][], targetEvents: ParsedEvent[]) {
     if (isAnimationLabel(name)) {
       name = name.substr(1);
-      this._parseAnimationEvent(name, expression, sourceSpan, targetEvents);
+      this._parseAnimationEvent(name, expression, sourceSpan, handlerSpan, targetEvents);
     } else {
-      this._parseRegularEvent(name, expression, sourceSpan, targetMatchableAttrs, targetEvents);
+      this._parseRegularEvent(
+          name, expression, sourceSpan, handlerSpan, targetMatchableAttrs, targetEvents);
     }
   }
 
+  calcPossibleSecurityContexts(selector: string, propName: string, isAttribute: boolean):
+      SecurityContext[] {
+    const prop = this._schemaRegistry.getMappedPropName(propName);
+    return calcPossibleSecurityContexts(this._schemaRegistry, selector, prop, isAttribute);
+  }
+
   private _parseAnimationEvent(
-      name: string, expression: string, sourceSpan: ParseSourceSpan, targetEvents: ParsedEvent[]) {
+      name: string, expression: string, sourceSpan: ParseSourceSpan, handlerSpan: ParseSourceSpan,
+      targetEvents: ParsedEvent[]) {
     const matches = splitAtPeriod(name, [name, '']);
     const eventName = matches[0];
     const phase = matches[1].toLowerCase();
@@ -314,9 +329,9 @@ export class BindingParser {
       switch (phase) {
         case 'start':
         case 'done':
-          const ast = this._parseAction(expression, sourceSpan);
-          targetEvents.push(
-              new ParsedEvent(eventName, phase, ParsedEventType.Animation, ast, sourceSpan));
+          const ast = this._parseAction(expression, handlerSpan);
+          targetEvents.push(new ParsedEvent(
+              eventName, phase, ParsedEventType.Animation, ast, sourceSpan, handlerSpan));
           break;
 
         default:
@@ -333,19 +348,20 @@ export class BindingParser {
   }
 
   private _parseRegularEvent(
-      name: string, expression: string, sourceSpan: ParseSourceSpan,
+      name: string, expression: string, sourceSpan: ParseSourceSpan, handlerSpan: ParseSourceSpan,
       targetMatchableAttrs: string[][], targetEvents: ParsedEvent[]) {
     // long format: 'target: eventName'
     const [target, eventName] = splitAtColon(name, [null !, name]);
-    const ast = this._parseAction(expression, sourceSpan);
+    const ast = this._parseAction(expression, handlerSpan);
     targetMatchableAttrs.push([name !, ast.source !]);
-    targetEvents.push(new ParsedEvent(eventName, target, ParsedEventType.Regular, ast, sourceSpan));
+    targetEvents.push(
+        new ParsedEvent(eventName, target, ParsedEventType.Regular, ast, sourceSpan, handlerSpan));
     // Don't detect directives for event names for now,
     // so don't add the event name to the matchableAttrs
   }
 
   private _parseAction(value: string, sourceSpan: ParseSourceSpan): ASTWithSource {
-    const sourceInfo = sourceSpan.start.toString();
+    const sourceInfo = (sourceSpan && sourceSpan.start || '(unknown').toString();
 
     try {
       const ast = this._exprParser.parseAction(value, sourceInfo, this._interpolationConfig);
@@ -367,7 +383,7 @@ export class BindingParser {
   private _reportError(
       message: string, sourceSpan: ParseSourceSpan,
       level: ParseErrorLevel = ParseErrorLevel.ERROR) {
-    this._targetErrors.push(new ParseError(sourceSpan, message, level));
+    this.errors.push(new ParseError(sourceSpan, message, level));
   }
 
   private _reportExpressionParserErrors(errors: ParserError[], sourceSpan: ParseSourceSpan) {
