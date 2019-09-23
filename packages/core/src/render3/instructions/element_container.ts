@@ -10,13 +10,15 @@ import {assertHasParent} from '../assert';
 import {attachPatchData} from '../context_discovery';
 import {registerPostOrderHooks} from '../hooks';
 import {TAttributes, TNodeType} from '../interfaces/node';
-import {BINDING_INDEX, HEADER_OFFSET, QUERIES, RENDERER, TVIEW, T_HOST} from '../interfaces/view';
+import {isContentQueryHost, isDirectiveHost} from '../interfaces/type_checks';
+import {BINDING_INDEX, HEADER_OFFSET, RENDERER, TVIEW, T_HOST} from '../interfaces/view';
 import {assertNodeType} from '../node_assert';
 import {appendChild} from '../node_manipulation';
-import {applyOnCreateInstructions} from '../node_util';
 import {getIsParent, getLView, getPreviousOrParentTNode, setIsNotParent, setPreviousOrParentTNode} from '../state';
 
-import {createDirectivesAndLocals, executeContentQueries, getOrCreateTNode, setNodeStylingTemplate} from './shared';
+import {createDirectivesInstances, executeContentQueries, getOrCreateTNode, resolveDirectives, saveResolvedLocalsInData} from './shared';
+import {registerInitialStylingOnTNode} from './styling';
+
 
 
 /**
@@ -52,22 +54,31 @@ export function ɵɵelementContainerStart(
       tView, lView[T_HOST], index, TNodeType.ElementContainer, tagName, attrs || null);
 
 
-  if (attrs) {
+  if (attrs && tView.firstTemplatePass) {
     // While ng-container doesn't necessarily support styling, we use the style context to identify
     // and execute directives on the ng-container.
-    setNodeStylingTemplate(tView, tNode, attrs, 0);
+    registerInitialStylingOnTNode(tNode, attrs as TAttributes, 0);
   }
 
   appendChild(native, tNode, lView);
-  createDirectivesAndLocals(tView, lView, localRefs);
   attachPatchData(native, lView);
 
-  const currentQueries = lView[QUERIES];
-  if (currentQueries) {
-    currentQueries.addNode(tNode);
-    lView[QUERIES] = currentQueries.clone(tNode);
+  if (tView.firstTemplatePass) {
+    ngDevMode && ngDevMode.firstTemplatePass++;
+    resolveDirectives(tView, lView, tNode, localRefs || null);
+    if (tView.queries) {
+      tView.queries.elementStart(tView, tNode);
+    }
   }
-  executeContentQueries(tView, tNode, lView);
+
+  if (isDirectiveHost(tNode)) {
+    createDirectivesInstances(tView, lView, tNode);
+    executeContentQueries(tView, tNode, lView);
+  }
+
+  if (localRefs != null) {
+    saveResolvedLocalsInData(lView, tNode);
+  }
 }
 
 /**
@@ -88,15 +99,27 @@ export function ɵɵelementContainerEnd(): void {
   }
 
   ngDevMode && assertNodeType(previousOrParentTNode, TNodeType.ElementContainer);
-  const currentQueries = lView[QUERIES];
-  // Go back up to parent queries only if queries have been cloned on this element.
-  if (currentQueries && previousOrParentTNode.index === currentQueries.nodeIndex) {
-    lView[QUERIES] = currentQueries.parent;
+
+  if (tView.firstTemplatePass) {
+    registerPostOrderHooks(tView, previousOrParentTNode);
+    if (isContentQueryHost(previousOrParentTNode)) {
+      tView.queries !.elementEnd(previousOrParentTNode);
+    }
   }
+}
 
-  // this is required for all host-level styling-related instructions to run
-  // in the correct order
-  previousOrParentTNode.onElementCreationFns && applyOnCreateInstructions(previousOrParentTNode);
-
-  registerPostOrderHooks(tView, previousOrParentTNode);
+/**
+ * Creates an empty logical container using {@link elementContainerStart}
+ * and {@link elementContainerEnd}
+ *
+ * @param index Index of the element in the LView array
+ * @param attrs Set of attributes to be used when matching directives.
+ * @param localRefs A set of local reference bindings on the element.
+ *
+ * @codeGenApi
+ */
+export function ɵɵelementContainer(
+    index: number, attrs?: TAttributes | null, localRefs?: string[] | null): void {
+  ɵɵelementContainerStart(index, attrs, localRefs);
+  ɵɵelementContainerEnd();
 }

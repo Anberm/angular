@@ -14,7 +14,7 @@ import {ViewContainerRef} from '@angular/core/src/linker/view_container_ref';
 import {Renderer2} from '@angular/core/src/render/api';
 import {createLView, createTView, getOrCreateTNode, getOrCreateTView, renderComponentOrTemplate} from '@angular/core/src/render3/instructions/shared';
 import {TNodeType} from '@angular/core/src/render3/interfaces/node';
-import {enterView, getLView, resetComponentState} from '@angular/core/src/render3/state';
+import {getLView, resetComponentState, selectView} from '@angular/core/src/render3/state';
 import {stringifyElement} from '@angular/platform-browser/testing/src/browser_util';
 
 import {SWITCH_CHANGE_DETECTOR_REF_FACTORY__POST_R3__ as R3_CHANGE_DETECTOR_REF_FACTORY} from '../../src/change_detection/change_detector_ref';
@@ -35,7 +35,7 @@ import {ProceduralRenderer3, RComment, RElement, RNode, RText, Renderer3, Render
 import {HEADER_OFFSET, LView, LViewFlags, TVIEW, T_HOST} from '../../src/render3/interfaces/view';
 import {destroyLView} from '../../src/render3/node_manipulation';
 import {getRootView} from '../../src/render3/util/view_traversal_utils';
-import {Sanitizer} from '../../src/sanitization/security';
+import {Sanitizer} from '../../src/sanitization/sanitizer';
 
 import {getRendererFactory2} from './imported_renderer2';
 
@@ -257,10 +257,9 @@ export function renderTemplate<T>(
     const hostLView = createLView(
         null, tView, {}, LViewFlags.CheckAlways | LViewFlags.IsRoot, null, null,
         providedRendererFactory, renderer);
-    enterView(hostLView, null);  // SUSPECT! why do we need to enter the View?
+    selectView(hostLView, null);  // SUSPECT! why do we need to enter the View?
 
     const def: ComponentDef<any> = ɵɵdefineComponent({
-      factory: () => null,
       selectors: [],
       type: Object,
       template: templateFn,
@@ -277,7 +276,7 @@ export function renderTemplate<T>(
         hostLView, componentTView, context, LViewFlags.CheckAlways, hostNode, hostTNode,
         providedRendererFactory, renderer, sanitizer);
   }
-  renderComponentOrTemplate(componentView, context, templateFn);
+  renderComponentOrTemplate(componentView, templateFn, context);
   return componentView;
 }
 
@@ -302,7 +301,7 @@ function toDefs(
     types: PipeTypesOrFactory | undefined | null,
     mapFn: (type: Type<any>) => PipeDef<any>): PipeDefList|null;
 function toDefs(
-    types: PipeTypesOrFactory | DirectiveTypesOrFactory | undefined | null,
+    types: Type<any>[] | (() => Type<any>[]) | undefined | null,
     mapFn: (type: Type<any>) => PipeDef<any>| DirectiveDef<any>): any {
   if (!types) return null;
   if (typeof types == 'function') {
@@ -369,12 +368,12 @@ export function createComponent(
     viewProviders: Provider[] = [], hostBindings?: HostBindingsFunction<any>): ComponentType<any> {
   return class Component {
     value: any;
+    static ngFactoryDef = () => new Component;
     static ngComponentDef = ɵɵdefineComponent({
       type: Component,
       selectors: [[name]],
       consts: consts,
       vars: vars,
-      factory: () => new Component,
       template: template,
       viewQuery: viewQuery,
       directives: directives, hostBindings,
@@ -388,10 +387,10 @@ export function createComponent(
 export function createDirective(
     name: string, {exportAs}: {exportAs?: string[]} = {}): DirectiveType<any> {
   return class Directive {
+    static ngFactoryDef = () => new Directive();
     static ngDirectiveDef = ɵɵdefineDirective({
       type: Directive,
       selectors: [['', name, '']],
-      factory: () => new Directive(),
       exportAs: exportAs,
     });
   };

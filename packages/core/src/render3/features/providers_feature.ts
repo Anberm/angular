@@ -29,8 +29,7 @@ import {DirectiveDef} from '../interfaces/definition';
  *        ɵɵtext(0);
  *      }
  *      if (fs & RenderFlags.Update) {
- *        ɵɵselect(0);
- *        ɵɵtextBinding(ctx.greeter.greet());
+ *        ɵɵtextInterpolate(ctx.greeter.greet());
  *      }
  *    },
  *    features: [ProvidersFeature([GreeterDE])]

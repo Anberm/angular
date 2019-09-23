@@ -7,7 +7,7 @@
  */
 
 import {R3DirectiveMetadataFacade, getCompilerFacade} from '../../compiler/compiler_facade';
-import {R3BaseMetadataFacade, R3ComponentMetadataFacade, R3QueryMetadataFacade} from '../../compiler/compiler_facade_interface';
+import {CompilerFacade, R3BaseMetadataFacade, R3ComponentMetadataFacade, R3QueryMetadataFacade} from '../../compiler/compiler_facade_interface';
 import {resolveForwardRef} from '../../di/forward_ref';
 import {compileInjectable} from '../../di/jit/injectable';
 import {getReflect, reflectDependencies} from '../../di/jit/util';
@@ -16,9 +16,10 @@ import {Query} from '../../metadata/di';
 import {Component, Directive, Input} from '../../metadata/directives';
 import {componentNeedsResolution, maybeQueueResolutionOfComponentResources} from '../../metadata/resource_loading';
 import {ViewEncapsulation} from '../../metadata/view';
+import {initNgDevMode} from '../../util/ng_dev_mode';
 import {getBaseDef, getComponentDef, getDirectiveDef} from '../definition';
 import {EMPTY_ARRAY, EMPTY_OBJ} from '../empty';
-import {NG_BASE_DEF, NG_COMPONENT_DEF, NG_DIRECTIVE_DEF} from '../fields';
+import {NG_BASE_DEF, NG_COMPONENT_DEF, NG_DIRECTIVE_DEF, NG_FACTORY_DEF} from '../fields';
 import {ComponentType} from '../interfaces/definition';
 import {stringifyForError} from '../util/misc_utils';
 
@@ -37,44 +38,36 @@ import {flushModuleScopingQueueAsMuchAsPossible, patchComponentDefWithScope, tra
  * until the global queue has been resolved with a call to `resolveComponentResources`.
  */
 export function compileComponent(type: Type<any>, metadata: Component): void {
+  // Initialize ngDevMode. This must be the first statement in compileComponent.
+  // See the `initNgDevMode` docstring for more information.
+  (typeof ngDevMode === 'undefined' || ngDevMode) && initNgDevMode();
+
   let ngComponentDef: any = null;
+  let ngFactoryDef: any = null;
+
   // Metadata may have resources which need to be resolved.
   maybeQueueResolutionOfComponentResources(type, metadata);
+
+  Object.defineProperty(type, NG_FACTORY_DEF, {
+    get: () => {
+      if (ngFactoryDef === null) {
+        const compiler = getCompilerFacade();
+        const meta = getComponentMetadata(compiler, type, metadata);
+        ngFactoryDef = compiler.compileFactory(
+            angularCoreEnv, `ng:///${type.name}/ngFactory.js`, meta.metadata);
+      }
+      return ngFactoryDef;
+    },
+    // Make the property configurable in dev mode to allow overriding in tests
+    configurable: !!ngDevMode,
+  });
+
   Object.defineProperty(type, NG_COMPONENT_DEF, {
     get: () => {
-      const compiler = getCompilerFacade();
       if (ngComponentDef === null) {
-        if (componentNeedsResolution(metadata)) {
-          const error = [`Component '${type.name}' is not resolved:`];
-          if (metadata.templateUrl) {
-            error.push(` - templateUrl: ${metadata.templateUrl}`);
-          }
-          if (metadata.styleUrls && metadata.styleUrls.length) {
-            error.push(` - styleUrls: ${JSON.stringify(metadata.styleUrls)}`);
-          }
-          error.push(`Did you run and wait for 'resolveComponentResources()'?`);
-          throw new Error(error.join('\n'));
-        }
-
-        const templateUrl = metadata.templateUrl || `ng:///${type.name}/template.html`;
-        const meta: R3ComponentMetadataFacade = {
-          ...directiveMetadata(type, metadata),
-          typeSourceSpan: compiler.createParseSourceSpan('Component', type.name, templateUrl),
-          template: metadata.template || '',
-          preserveWhitespaces: metadata.preserveWhitespaces || false,
-          styles: metadata.styles || EMPTY_ARRAY,
-          animations: metadata.animations,
-          directives: [],
-          changeDetection: metadata.changeDetection,
-          pipes: new Map(),
-          encapsulation: metadata.encapsulation || ViewEncapsulation.Emulated,
-          interpolation: metadata.interpolation,
-          viewProviders: metadata.viewProviders || null,
-        };
-        if (meta.usesInheritance) {
-          addBaseDefToUndecoratedParents(type);
-        }
-        ngComponentDef = compiler.compileComponent(angularCoreEnv, templateUrl, meta);
+        const compiler = getCompilerFacade();
+        const meta = getComponentMetadata(compiler, type, metadata);
+        ngComponentDef = compiler.compileComponent(angularCoreEnv, meta.templateUrl, meta.metadata);
 
         // When NgModule decorator executed, we enqueued the module definition such that
         // it would only dequeue and add itself as module scope to all of its declarations,
@@ -98,11 +91,44 @@ export function compileComponent(type: Type<any>, metadata: Component): void {
     configurable: !!ngDevMode,
   });
 
-
   // Add ngInjectableDef so components are reachable through the module injector by default
   // This is mostly to support injecting components in tests. In real application code,
   // components should be retrieved through the node injector, so this isn't a problem.
   compileInjectable(type);
+}
+
+function getComponentMetadata(compiler: CompilerFacade, type: Type<any>, metadata: Component) {
+  if (componentNeedsResolution(metadata)) {
+    const error = [`Component '${type.name}' is not resolved:`];
+    if (metadata.templateUrl) {
+      error.push(` - templateUrl: ${metadata.templateUrl}`);
+    }
+    if (metadata.styleUrls && metadata.styleUrls.length) {
+      error.push(` - styleUrls: ${JSON.stringify(metadata.styleUrls)}`);
+    }
+    error.push(`Did you run and wait for 'resolveComponentResources()'?`);
+    throw new Error(error.join('\n'));
+  }
+
+  const templateUrl = metadata.templateUrl || `ng:///${type.name}/template.html`;
+  const meta: R3ComponentMetadataFacade = {
+    ...directiveMetadata(type, metadata),
+    typeSourceSpan: compiler.createParseSourceSpan('Component', type.name, templateUrl),
+    template: metadata.template || '',
+    preserveWhitespaces: metadata.preserveWhitespaces || false,
+    styles: metadata.styles || EMPTY_ARRAY,
+    animations: metadata.animations,
+    directives: [],
+    changeDetection: metadata.changeDetection,
+    pipes: new Map(),
+    encapsulation: metadata.encapsulation || ViewEncapsulation.Emulated,
+    interpolation: metadata.interpolation,
+    viewProviders: metadata.viewProviders || null,
+  };
+  if (meta.usesInheritance) {
+    addBaseDefToUndecoratedParents(type);
+  }
+  return {metadata: meta, templateUrl};
 }
 
 function hasSelectorScope<T>(component: Type<T>): component is Type<T>&
@@ -117,20 +143,35 @@ function hasSelectorScope<T>(component: Type<T>): component is Type<T>&
  * In the event that compilation is not immediate, `compileDirective` will return a `Promise` which
  * will resolve when compilation completes and the directive becomes usable.
  */
-export function compileDirective(type: Type<any>, directive: Directive): void {
+export function compileDirective(type: Type<any>, directive: Directive | null): void {
   let ngDirectiveDef: any = null;
+  let ngFactoryDef: any = null;
+
+  Object.defineProperty(type, NG_FACTORY_DEF, {
+    get: () => {
+      if (ngFactoryDef === null) {
+        // `directive` can be null in the case of abstract directives as a base class
+        // that use `@Directive()` with no selector. In that case, pass empty object to the
+        // `directiveMetadata` function instead of null.
+        const meta = getDirectiveMetadata(type, directive || {});
+        ngFactoryDef = getCompilerFacade().compileFactory(
+            angularCoreEnv, `ng:///${type.name}/ngFactory.js`, meta.metadata);
+      }
+      return ngFactoryDef;
+    },
+    // Make the property configurable in dev mode to allow overriding in tests
+    configurable: !!ngDevMode,
+  });
+
   Object.defineProperty(type, NG_DIRECTIVE_DEF, {
     get: () => {
       if (ngDirectiveDef === null) {
-        const name = type && type.name;
-        const sourceMapUrl = `ng:///${name}/ngDirectiveDef.js`;
-        const compiler = getCompilerFacade();
-        const facade = directiveMetadata(type as ComponentType<any>, directive);
-        facade.typeSourceSpan = compiler.createParseSourceSpan('Directive', name, sourceMapUrl);
-        if (facade.usesInheritance) {
-          addBaseDefToUndecoratedParents(type);
-        }
-        ngDirectiveDef = compiler.compileDirective(angularCoreEnv, sourceMapUrl, facade);
+        // `directive` can be null in the case of abstract directives as a base class
+        // that use `@Directive()` with no selector. In that case, pass empty object to the
+        // `directiveMetadata` function instead of null.
+        const meta = getDirectiveMetadata(type, directive || {});
+        ngDirectiveDef =
+            getCompilerFacade().compileDirective(angularCoreEnv, meta.sourceMapUrl, meta.metadata);
       }
       return ngDirectiveDef;
     },
@@ -142,6 +183,18 @@ export function compileDirective(type: Type<any>, directive: Directive): void {
   // This is mostly to support injecting directives in tests. In real application code,
   // directives should be retrieved through the node injector, so this isn't a problem.
   compileInjectable(type);
+}
+
+function getDirectiveMetadata(type: Type<any>, metadata: Directive) {
+  const name = type && type.name;
+  const sourceMapUrl = `ng:///${name}/ngDirectiveDef.js`;
+  const compiler = getCompilerFacade();
+  const facade = directiveMetadata(type as ComponentType<any>, metadata);
+  facade.typeSourceSpan = compiler.createParseSourceSpan('Directive', name, sourceMapUrl);
+  if (facade.usesInheritance) {
+    addBaseDefToUndecoratedParents(type);
+  }
+  return {metadata: facade, sourceMapUrl};
 }
 
 export function extendsDirectlyFromObject(type: Type<any>): boolean {
@@ -241,7 +294,7 @@ function extractBaseDefMetadata(type: Type<any>): R3BaseMetadataFacade|null {
 
   // Only generate the base def if there's any info inside it.
   if (inputs || outputs || viewQueries.length || queries.length || hasHostDecorators) {
-    return {name: type.name, inputs, outputs, viewQueries, queries, propMetadata};
+    return {name: type.name, type, inputs, outputs, viewQueries, queries, propMetadata};
   }
 
   return null;

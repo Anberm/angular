@@ -18,8 +18,11 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 # Fetch rules_nodejs so we can install our npm dependencies
 http_archive(
     name = "build_bazel_rules_nodejs",
-    sha256 = "6d4edbf28ff6720aedf5f97f9b9a7679401bf7fca9d14a0fff80f644a99992b4",
-    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/0.32.2/rules_nodejs-0.32.2.tar.gz"],
+    patch_args = ["-p1"],
+    # Patch https://github.com/bazelbuild/rules_nodejs/pull/903
+    patches = ["//tools:rollup_bundle_commonjs_ignoreGlobal.patch"],
+    sha256 = "7c4a690268be97c96f04d505224ec4cb1ae53c2c2b68be495c9bd2634296a5cd",
+    urls = ["https://github.com/bazelbuild/rules_nodejs/releases/download/0.34.0/rules_nodejs-0.34.0.tar.gz"],
 )
 
 # Check the bazel version and download npm dependencies
@@ -50,7 +53,8 @@ Try running `yarn bazel` instead.
 #   - 0.32.0 yarn_install and npm_install no longer puts build files under symlinked node_modules
 #   - 0.32.1 remove override of @bazel/tsetse & exclude typescript lib declarations in node_module_library transitive_declarations
 #   - 0.32.2 resolves bug in @bazel/hide-bazel-files postinstall step
-check_rules_nodejs_version(minimum_version_string = "0.32.2")
+#   - 0.34.0 introduces protractor rule
+check_rules_nodejs_version(minimum_version_string = "0.34.0")
 
 # Setup the Node.js toolchain
 node_repositories(
@@ -61,6 +65,9 @@ node_repositories(
     },
     node_version = "10.16.0",
     package_json = ["//:package.json"],
+    yarn_repositories = {
+        "1.17.3": ("yarn-v1.17.3.tar.gz", "yarn-v1.17.3", "e3835194409f1b3afa1c62ca82f561f1c29d26580c9e220c36866317e043c6f3"),
+    },
     # yarn 1.13.0 under Bazel has a regression on Windows that causes build errors on rebuilds:
     # ```
     # ERROR: Source forest creation failed: C:/.../fyuc5c3n/execroot/angular/external (Directory not empty)
@@ -69,7 +76,7 @@ node_repositories(
     # It possible that versions of yarn past 1.13.0 do not have this issue, however, before
     # advancing this version we need to test manually on Windows that the above error does not
     # happen as the issue is not caught by CI.
-    yarn_version = "1.12.1",
+    yarn_version = "1.17.3",
 )
 
 yarn_install(
@@ -87,6 +94,11 @@ install_bazel_dependencies()
 load("//packages/bazel:package.bzl", "rules_angular_dev_dependencies")
 
 rules_angular_dev_dependencies()
+
+# Load protractor dependencies
+load("@npm_bazel_protractor//:package.bzl", "npm_bazel_protractor_dependencies")
+
+npm_bazel_protractor_dependencies()
 
 # Load karma dependencies
 load("@npm_bazel_karma//:package.bzl", "rules_karma_dependencies")

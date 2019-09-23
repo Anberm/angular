@@ -178,7 +178,7 @@ For more information, see [/deep/, >>>, and ::ng-deep](guide/component-styles#de
 {@a template-tag}
 ### &lt;template&gt; tag
 
-The `<template>` tag was deprecated in v4 to avoid colliding with the DOM's element of the same name (such as when using web components). Use `<ng-template>` instead. For more information, see the [Ahead-of-Time Compilation](guide/aot-compiler#enablelegacytemplate) guide.
+The `<template>` tag was deprecated in v4 to avoid colliding with the DOM's element of the same name (such as when using web components). Use `<ng-template>` instead. For more information, see the [Ahead-of-Time Compilation](guide/angular-compiler-options#enablelegacytemplate) guide.
 
 
 
@@ -321,7 +321,7 @@ In a typical Angular project, the polyfill is not used in production builds, so 
 {@a static-query-resolution}
 ### `@ViewChild()` / `@ContentChild()` static resolution as the default
 
-See our [dedicated migration guide for static queries](guide/static-query-migration).
+See the [dedicated migration guide for static queries](guide/static-query-migration).
 
 {@a contentchild-input-together}
 ### `@ContentChild()` / `@Input()` used together
@@ -368,7 +368,7 @@ These two properties have subtle differences, so switching to `textContent` unde
 All of the `wtf*` APIs are deprecated and will be removed in a future version.
 
 {@a webworker-apps}
-### Running Angular applications in platform-webworker 
+### Running Angular applications in platform-webworker
 
 The `@angular/platform-*` packages enable Angular to be run in different contexts. For examples,
 `@angular/platform-server` enables Angular to be run on the server, and `@angular/platform-browser`
@@ -382,12 +382,24 @@ worker is not the best strategy for most applications.
 
 Going forward, we will focus our efforts related to web workers around their primary use case of
 offloading CPU-intensive, non-critical work needed for initial rendering (such as in-memory search
-and image processing). Learn more in the 
+and image processing). Learn more in the
 [guide to Using Web Workers with the Angular CLI](guide/web-worker).
 
 As of Angular version 8, all  `platform-webworker` APIs are deprecated.
 This includes both packages: `@angular/platform-webworker` and
 `@angular/platform-webworker-dynamic`.
+
+
+## Angular version 9 schematics
+
+{@a renderer-to-renderer2}
+### Migrating from `Renderer` to `Renderer2`
+
+See the [dedicated migration guide for Renderer](guide/migration-renderer).
+
+{@a undecorated-classes}
+### Migrating undecorated classes
+  See the [dedicated migration guide for undecorated classes](guide/migration-undecorated-classes).
 
 {@a removed}
 ## Removed APIs
@@ -396,10 +408,10 @@ The following APIs have been removed starting with version 8.0.0:
 
 | Package | API            | Replacement | Notes |
 | ------- | -------------- | ----------- | ----- |
-| [`@angular/http`](https://v7.angular.io/api/http) | All exports | [`@angular/common/http`](https://v7.angular.io/api/common/http) | See [below](#http). |
-[`@angular/http/testing`](https://v7.angular.io/api/http/testing) | All exports | [`@angular/common/http/testing`](https://v7.angular.io/api/common/http/testing) | See [below](#http). |
-| `@angular/platform-browser` | [`DOCUMENT`](https://v7.angular.io/api/platform-browser/DOCUMENT) | [`DOCUMENT` in `@angular/common`](https://v7.angular.io/api/common/DOCUMENT) | Updating to version 8 with [`ng update`](cli/update) changes this automatically.  |
-| `@angular/core/testing` | [`TestBed.deprecatedOverrideProvider()`](https://v7.angular.io/api/core/testing/TestBed#deprecatedoverrideprovider) | [`TestBed.overrideProvider()`] (api/core/testing/TestBed#overrideprovider) | none |
+| [`@angular/http`](https://v7.angular.io/api/http) | All exports | [`@angular/common/http`](api/common/http) | See [below](#http). |
+[`@angular/http/testing`](https://v7.angular.io/api/http/testing) | All exports | [`@angular/common/http/testing`](api/common/http/testing) | See [below](#http). |
+| `@angular/platform-browser` | [`DOCUMENT`](https://v7.angular.io/api/platform-browser/DOCUMENT) | [`DOCUMENT` in `@angular/common`](api/common/DOCUMENT) | Updating to version 8 with [`ng update`](cli/update) changes this automatically.  |
+| `@angular/core/testing` | [`TestBed.deprecatedOverrideProvider()`](https://v7.angular.io/api/core/testing/TestBed#deprecatedoverrideprovider) | [`TestBed.overrideProvider()`](api/core/testing/TestBed#overrideprovider) | none |
 | `@angular/core/testing` | [`TestBedStatic.deprecatedOverrideProvider()`](https://v7.angular.io/api/core/testing/TestBedStatic#deprecatedoverrideprovider) | [`TestBedStatic.overrideProvider()`](api/core/testing/TestBedStatic#overrideprovider) | none |
 
 
@@ -464,4 +476,3 @@ For more information about using `@angular/common/http`, see the [HttpClient gui
 | --------------------- | ------------------------------------------- |
 | `MockBackend` | [`HttpTestingController`](/api/common/http/testing/HttpTestingController) |
 | `MockConnection` | [`HttpTestingController`](/api/common/http/testing/HttpTestingController) |
-

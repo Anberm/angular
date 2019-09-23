@@ -10,8 +10,8 @@ import {withBody} from '@angular/private/testing';
 
 import {ChangeDetectionStrategy, DoCheck} from '../../src/core';
 import {whenRendered} from '../../src/render3/component';
-import {LifecycleHooksFeature, getRenderedText, ɵɵdefineComponent, ɵɵgetCurrentView, ɵɵproperty, ɵɵselect, ɵɵtextInterpolate1, ɵɵtextInterpolate2} from '../../src/render3/index';
-import {detectChanges, markDirty, tick, ɵɵelement, ɵɵelementEnd, ɵɵelementStart, ɵɵlistener, ɵɵtext, ɵɵtextBinding} from '../../src/render3/instructions/all';
+import {LifecycleHooksFeature, getRenderedText, ɵɵadvance, ɵɵdefineComponent, ɵɵgetCurrentView, ɵɵproperty, ɵɵtextInterpolate1, ɵɵtextInterpolate2} from '../../src/render3/index';
+import {detectChanges, markDirty, tick, ɵɵelement, ɵɵelementEnd, ɵɵelementStart, ɵɵlistener, ɵɵtext, ɵɵtextInterpolate} from '../../src/render3/instructions/all';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
 import {Renderer3, RendererFactory3} from '../../src/render3/interfaces/renderer';
 import {FLAGS, LViewFlags} from '../../src/render3/interfaces/view';
@@ -25,10 +25,10 @@ describe('change detection', () => {
       doCheckCount = 0;
       ngDoCheck(): void { this.doCheckCount++; }
 
+      static ngFactoryDef = () => new MyComponent();
       static ngComponentDef = ɵɵdefineComponent({
         type: MyComponent,
         selectors: [['my-comp']],
-        factory: () => new MyComponent(),
         consts: 2,
         vars: 1,
         template: (rf: RenderFlags, ctx: MyComponent) => {
@@ -38,8 +38,8 @@ describe('change detection', () => {
             ɵɵelementEnd();
           }
           if (rf & RenderFlags.Update) {
-            ɵɵselect(1);
-            ɵɵtextBinding(ctx.value);
+            ɵɵadvance(1);
+            ɵɵtextInterpolate(ctx.value);
           }
         }
       });
@@ -101,10 +101,10 @@ describe('change detection', () => {
 
       onClick() {}
 
+      static ngFactoryDef = () => comp = new MyComponent();
       static ngComponentDef = ɵɵdefineComponent({
         type: MyComponent,
         selectors: [['my-comp']],
-        factory: () => comp = new MyComponent(),
         consts: 2,
         vars: 2,
         /**
@@ -121,7 +121,6 @@ describe('change detection', () => {
             ɵɵelementEnd();
           }
           if (rf & RenderFlags.Update) {
-            ɵɵselect(0);
             ɵɵtextInterpolate2('', ctx.doCheckCount, ' - ', ctx.name, '');
           }
         },
@@ -140,10 +139,10 @@ describe('change detection', () => {
 
         onClick() {}
 
+        static ngFactoryDef = () => comp = new ManualComponent();
         static ngComponentDef = ɵɵdefineComponent({
           type: ManualComponent,
           selectors: [['manual-comp']],
-          factory: () => comp = new ManualComponent(),
           consts: 2,
           vars: 2,
           /**
@@ -165,7 +164,6 @@ describe('change detection', () => {
               ɵɵelementEnd();
             }
             if (rf & RenderFlags.Update) {
-              ɵɵselect(0);
               ɵɵtextInterpolate2('', ctx.doCheckCount, ' - ', ctx.name, '');
             }
           },
@@ -177,10 +175,10 @@ describe('change detection', () => {
       class ManualApp {
         name: string = 'Nancy';
 
+        static ngFactoryDef = () => new ManualApp();
         static ngComponentDef = ɵɵdefineComponent({
           type: ManualApp,
           selectors: [['manual-app']],
-          factory: () => new ManualApp(),
           consts: 1,
           vars: 1,
           /** <manual-comp [name]="name"></manual-comp> */
@@ -189,7 +187,6 @@ describe('change detection', () => {
               ɵɵelement(0, 'manual-comp');
             }
             if (rf & RenderFlags.Update) {
-              ɵɵselect(0);
               ɵɵproperty('name', ctx.name);
             }
 
@@ -233,10 +230,10 @@ describe('change detection', () => {
              doCheckCount = 0;
              ngDoCheck(): void { this.doCheckCount++; }
 
+             static ngFactoryDef = () => parent = new ButtonParent();
              static ngComponentDef = ɵɵdefineComponent({
                type: ButtonParent,
                selectors: [['button-parent']],
-               factory: () => parent = new ButtonParent(),
                consts: 2,
                vars: 1,
                /** {{ doCheckCount }} - <manual-comp></manual-comp> */
@@ -246,7 +243,6 @@ describe('change detection', () => {
                    ɵɵelement(1, 'manual-comp');
                  }
                  if (rf & RenderFlags.Update) {
-                   ɵɵselect(0);
                    ɵɵtextInterpolate1('', ctx.doCheckCount, ' - ');
                  }
                },
@@ -311,10 +307,10 @@ describe('change detection', () => {
         return 'works';
       }
 
+      static ngFactoryDef = () => new MyComponent();
       static ngComponentDef = ɵɵdefineComponent({
         type: MyComponent,
         selectors: [['my-comp']],
-        factory: () => new MyComponent(),
         consts: 1,
         vars: 1,
         template: (rf: RenderFlags, ctx: MyComponent) => {
@@ -322,8 +318,7 @@ describe('change detection', () => {
             ɵɵtext(0);
           }
           if (rf & RenderFlags.Update) {
-            ɵɵselect(0);
-            ɵɵtextBinding(ctx.value);
+            ɵɵtextInterpolate(ctx.value);
           }
         }
       });

@@ -18,7 +18,7 @@ describe('Google3 explicitQueryTiming TSLint rule', () => {
    * the Bazel runfiles, because on Windows runfiles are not symlinked into the working directory.
    */
   const rulesDirectory =
-      dirname(require.resolve('../../migrations/static-queries/google3/explicitQueryTimingRule'));
+      dirname(require.resolve('../../migrations/google3/explicitQueryTimingRule'));
 
   let tmpDir: string;
 
@@ -26,7 +26,10 @@ describe('Google3 explicitQueryTiming TSLint rule', () => {
     tmpDir = join(process.env['TEST_TMPDIR'] !, 'google3-test');
     shx.mkdir('-p', tmpDir);
 
-    writeFile('tsconfig.json', JSON.stringify({compilerOptions: {module: 'es2015'}}));
+    writeFile(
+        'tsconfig.json',
+        JSON.stringify(
+            {compilerOptions: {module: 'es2015'}, angularCompilerOptions: {enableIvy: false}}));
   });
 
   afterEach(() => shx.rm('-r', tmpDir));

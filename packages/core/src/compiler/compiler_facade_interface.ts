@@ -39,6 +39,10 @@ export interface CompilerFacade {
       angularCoreEnv: CoreEnvironment, sourceMapUrl: string, meta: R3ComponentMetadataFacade): any;
   compileBase(angularCoreEnv: CoreEnvironment, sourceMapUrl: string, meta: R3BaseMetadataFacade):
       any;
+  compileFactory(
+      angularCoreEnv: CoreEnvironment, sourceMapUrl: string,
+      meta: R3PipeMetadataFacade|R3DirectiveMetadataFacade|R3ComponentMetadataFacade,
+      isPipe?: boolean): any;
 
   createParseSourceSpan(kind: string, typeName: string, sourceUrl: string): ParseSourceSpan;
 
@@ -65,6 +69,7 @@ export type Provider = any;
 export enum R3ResolvedDependencyType {
   Token = 0,
   Attribute = 1,
+  ChangeDetectorRef = 2,
 }
 
 export interface R3DependencyMetadataFacade {
@@ -151,6 +156,7 @@ export interface R3ComponentMetadataFacade extends R3DirectiveMetadataFacade {
 
 export interface R3BaseMetadataFacade {
   name: string;
+  type: any;
   propMetadata: {[key: string]: any[]};
   inputs?: {[key: string]: string | [string, string]};
   outputs?: {[key: string]: string};

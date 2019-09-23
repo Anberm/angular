@@ -1,8 +1,5 @@
 [
   {
-    "name": "APP_ROOT"
-  },
-  {
     "name": "CIRCULAR"
   },
   {
@@ -15,6 +12,9 @@
     "name": "INJECTOR"
   },
   {
+    "name": "INJECTOR_SCOPE"
+  },
+  {
     "name": "Inject"
   },
   {
@@ -25,6 +25,9 @@
   },
   {
     "name": "NEW_LINE"
+  },
+  {
+    "name": "NG_FACTORY_DEF"
   },
   {
     "name": "NG_INJECTABLE_DEF"
@@ -117,6 +120,9 @@
     "name": "getClosureSafeProperty"
   },
   {
+    "name": "getFactoryDef"
+  },
+  {
     "name": "getInheritedInjectableDef"
   },
   {
@@ -156,6 +162,9 @@
     "name": "isFactoryProvider"
   },
   {
+    "name": "isForwardRef"
+  },
+  {
     "name": "isTypeProvider"
   },
   {
@@ -169,6 +178,9 @@
   },
   {
     "name": "makeRecord"
+  },
+  {
+    "name": "newArray"
   },
   {
     "name": "providerToFactory"

@@ -7,7 +7,7 @@
  */
 
 import {ComponentTemplate, ɵɵdefineComponent, ɵɵdefineDirective, ɵɵproperty} from '../../src/render3/index';
-import {ɵɵcontainer, ɵɵcontainerRefreshEnd, ɵɵcontainerRefreshStart, ɵɵelement, ɵɵelementEnd, ɵɵelementStart, ɵɵembeddedViewEnd, ɵɵembeddedViewStart, ɵɵprojection, ɵɵprojectionDef, ɵɵselect, ɵɵtext} from '../../src/render3/instructions/all';
+import {ɵɵcontainer, ɵɵcontainerRefreshEnd, ɵɵcontainerRefreshStart, ɵɵelement, ɵɵelementEnd, ɵɵelementStart, ɵɵembeddedViewEnd, ɵɵembeddedViewStart, ɵɵprojection, ɵɵprojectionDef, ɵɵtext} from '../../src/render3/instructions/all';
 import {RenderFlags} from '../../src/render3/interfaces/definition';
 import {NgIf} from './common_with_def';
 import {ComponentFixture, createComponent} from './render_util';
@@ -20,7 +20,6 @@ describe('lifecycles', () => {
         ɵɵelement(0, name);
       }
       if (rf & RenderFlags.Update) {
-        ɵɵselect(0);
         ɵɵproperty('val', ctx.val);
       }
     };
@@ -56,12 +55,12 @@ describe('lifecycles', () => {
           events.push(`${name}${this.val}`);
         }
 
+        static ngFactoryDef = () => new Component();
         static ngComponentDef = ɵɵdefineComponent({
           type: Component,
           selectors: [[name]],
           consts: consts,
           vars: vars,
-          factory: () => new Component(),
           inputs: {val: 'val'}, template,
           directives: directives
         });
@@ -71,8 +70,8 @@ describe('lifecycles', () => {
     class Directive {
       ngOnInit() { events.push('dir'); }
 
-      static ngDirectiveDef = ɵɵdefineDirective(
-          {type: Directive, selectors: [['', 'dir', '']], factory: () => new Directive()});
+      static ngFactoryDef = () => new Directive();
+      static ngDirectiveDef = ɵɵdefineDirective({type: Directive, selectors: [['', 'dir', '']]});
     }
 
     const directives = [Comp, Parent, ProjectedComp, Directive, NgIf];

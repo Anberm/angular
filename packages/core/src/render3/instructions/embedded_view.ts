@@ -11,12 +11,14 @@ import {assertLContainerOrUndefined} from '../assert';
 import {ACTIVE_INDEX, CONTAINER_HEADER_OFFSET, LContainer} from '../interfaces/container';
 import {RenderFlags} from '../interfaces/definition';
 import {TContainerNode, TNodeType} from '../interfaces/node';
-import {FLAGS, LView, LViewFlags, PARENT, QUERIES, TVIEW, TView, T_HOST} from '../interfaces/view';
+import {CONTEXT, LView, LViewFlags, PARENT, TVIEW, TView, T_HOST} from '../interfaces/view';
 import {assertNodeType} from '../node_assert';
 import {insertView, removeView} from '../node_manipulation';
-import {enterView, getIsParent, getLView, getPreviousOrParentTNode, isCreationMode, leaveView, setIsParent, setPreviousOrParentTNode} from '../state';
-import {resetPreOrderHookFlags} from '../util/view_utils';
-import {assignTViewNodeToLView, createLView, createTView, refreshDescendantViews} from './shared';
+import {getIsParent, getLView, getPreviousOrParentTNode, selectView, setIsParent, setPreviousOrParentTNode} from '../state';
+import {isCreationMode} from '../util/view_utils';
+
+import {assignTViewNodeToLView, createLView, createTView, refreshView, renderView} from './shared';
+
 
 /**
  * Marks the start of an embedded view.
@@ -41,7 +43,7 @@ export function ɵɵembeddedViewStart(
 
   if (viewToRender) {
     setIsParent();
-    enterView(viewToRender, viewToRender[TVIEW].node);
+    selectView(viewToRender, viewToRender[TVIEW].node);
   } else {
     // When we create a new LView, we always reset the state of the instructions.
     viewToRender = createLView(
@@ -49,14 +51,10 @@ export function ɵɵembeddedViewStart(
         getOrCreateEmbeddedTView(viewBlockId, consts, vars, containerTNode as TContainerNode), null,
         LViewFlags.CheckAlways, null, null);
 
-    if (lContainer[QUERIES]) {
-      viewToRender[QUERIES] = lContainer[QUERIES] !.createView();
-    }
-
     const tParentNode = getIsParent() ? previousOrParentTNode :
                                         previousOrParentTNode && previousOrParentTNode.parent;
     assignTViewNodeToLView(viewToRender[TVIEW], tParentNode, viewBlockId, viewToRender);
-    enterView(viewToRender, viewToRender[TVIEW].node);
+    selectView(viewToRender, viewToRender[TVIEW].node);
   }
   if (lContainer) {
     if (isCreationMode(viewToRender)) {
@@ -130,19 +128,17 @@ function scanForView(lContainer: LContainer, startIdx: number, viewBlockId: numb
  */
 export function ɵɵembeddedViewEnd(): void {
   const lView = getLView();
+  const tView = lView[TVIEW];
   const viewHost = lView[T_HOST];
+  const context = lView[CONTEXT];
 
   if (isCreationMode(lView)) {
-    refreshDescendantViews(lView);  // creation mode pass
-    lView[FLAGS] &= ~LViewFlags.CreationMode;
+    renderView(lView, tView, context);  // creation mode pass
   }
-  resetPreOrderHookFlags(lView);
-  refreshDescendantViews(lView);  // update mode pass
+  refreshView(lView, tView, tView.template, context);  // update mode pass
+
   const lContainer = lView[PARENT] as LContainer;
   ngDevMode && assertLContainerOrUndefined(lContainer);
-  // It's always safe to run hooks here, as `leaveView` is not called during the 'finally' block
-  // of a try-catch-finally statement, so it can never be reached while unwinding the stack due to
-  // an error being thrown.
-  leaveView(lContainer[PARENT] !, /* safeToRunHooks */ true);
+  selectView(lContainer[PARENT] !, null);
   setPreviousOrParentTNode(viewHost !, false);
 }

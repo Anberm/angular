@@ -8,12 +8,14 @@
  */
 import * as yargs from 'yargs';
 
-import {resolve, setFileSystem, NodeJSFileSystem} from '../src/ngtsc/file_system';
+import {resolve, setFileSystem, CachedFileSystem, NodeJSFileSystem} from '../src/ngtsc/file_system';
 import {mainNgcc} from './src/main';
 import {ConsoleLogger, LogLevel} from './src/logging/console_logger';
 
 // CLI entry point
 if (require.main === module) {
+  const startTime = Date.now();
+
   const args = process.argv.slice(2);
   const options =
       yargs
@@ -57,24 +59,36 @@ if (require.main === module) {
     process.exit(1);
   }
 
-  setFileSystem(new NodeJSFileSystem());
+  setFileSystem(new CachedFileSystem(new NodeJSFileSystem()));
 
   const baseSourcePath = resolve(options['s'] || './node_modules');
   const propertiesToConsider: string[] = options['p'];
   const targetEntryPointPath = options['t'] ? options['t'] : undefined;
   const compileAllFormats = !options['first-only'];
   const logLevel = options['l'] as keyof typeof LogLevel | undefined;
-  try {
-    mainNgcc({
-      basePath: baseSourcePath,
-      propertiesToConsider,
-      targetEntryPointPath,
-      compileAllFormats,
-      logger: logLevel && new ConsoleLogger(LogLevel[logLevel]),
-    });
-    process.exitCode = 0;
-  } catch (e) {
-    console.error(e.stack || e.message);
-    process.exitCode = 1;
-  }
+
+  (async() => {
+    try {
+      const logger = logLevel && new ConsoleLogger(LogLevel[logLevel]);
+
+      await mainNgcc({
+        basePath: baseSourcePath,
+        propertiesToConsider,
+        targetEntryPointPath,
+        compileAllFormats,
+        logger,
+        async: true,
+      });
+
+      if (logger) {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        logger.debug(`Run ngcc in ${duration}s.`);
+      }
+
+      process.exitCode = 0;
+    } catch (e) {
+      console.error(e.stack || e.message);
+      process.exitCode = 1;
+    }
+  })();
 }

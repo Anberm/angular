@@ -12,8 +12,8 @@ import * as shx from 'shelljs';
 import {Configuration, Linter} from 'tslint';
 
 describe('Google3 noTemplateVariableAssignment TSLint rule', () => {
-  const rulesDirectory = dirname(require.resolve(
-      '../../migrations/template-var-assignment/google3/noTemplateVariableAssignmentRule'));
+  const rulesDirectory =
+      dirname(require.resolve('../../migrations/google3/noTemplateVariableAssignmentRule'));
 
   let tmpDir: string;
 
@@ -21,7 +21,10 @@ describe('Google3 noTemplateVariableAssignment TSLint rule', () => {
     tmpDir = join(process.env['TEST_TMPDIR'] !, 'google3-test');
     shx.mkdir('-p', tmpDir);
 
-    writeFile('tsconfig.json', JSON.stringify({compilerOptions: {module: 'es2015'}}));
+    writeFile(
+        'tsconfig.json',
+        JSON.stringify(
+            {compilerOptions: {module: 'es2015'}, angularCompilerOptions: {enableIvy: false}}));
   });
 
   afterEach(() => shx.rm('-r', tmpDir));
